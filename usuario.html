@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<title>SisteMail — Panel Sucursal</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/estilos.css">
+<script>
+window.cerrarSidebarMovil = function() {
+  document.querySelector('.sidebar')?.classList.remove('mobile-open');
+  document.getElementById('sidebar-overlay')?.classList.remove('show');
+};
+window.toggleSidebar = function() {
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if(!sb) return;
+  const open = sb.classList.toggle('mobile-open');
+  if(ov) ov.classList.toggle('show', open);
+};
+// Disponible inmediatamente — el módulo carga tarde
+window.cerrarSesion = function() {
+  if (confirm('¿Deseas cerrar sesión?')) {
+    window._cerrando = true;
+    // Importar Firebase dinámicamente y cerrar sesión
+    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
+      .then(m => {
+        const apps = window._firebaseApps;
+        if (apps && apps.length > 0) {
+          const auth = m.getAuth(apps[0]);
+          return m.signOut(auth);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        sessionStorage.clear();
+        window.location.replace('index.html');
+      });
+  }
+};
+window.confirmarCerrarSesion = window.cerrarSesion;
+// sv disponible inmediatamente
+window.sv = function(v){
+  document.querySelectorAll('.view').forEach(function(x){x.classList.remove('active');});
+  var view=document.getElementById('view-'+v);if(view)view.classList.add('active');
+  document.querySelectorAll('.ni').forEach(function(x){x.classList.remove('on');});
+  var nav=document.getElementById('nav-'+v);if(nav)nav.classList.add('on');
+  var pt=document.getElementById('page-title');
+  var titulos={bandeja:'Bandeja de entrada',compose:'Nuevo reporte',enviados:'Mis reportes enviados',chat:'Chat con Sistemas',reunion:'Solicitar reunion',notif:'Notificaciones',config:'Configuracion'};
+  if(pt)pt.textContent=titulos[v]||v;
+  if(window._svHook) window._svHook(v);
+};
+</script>
+<style>
+.email-msg{border:1px solid rgba(0,0,0,.08);border-radius:12px;overflow:hidden;margin-bottom:10px;background:#fff;box-shadow:0 1px 8px rgba(0,0,0,.05)}
+.email-msg-header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(0,0,0,.06)}
+.email-msg-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
+.email-msg-meta{flex:1;overflow:hidden}
+.email-msg-from{font-size:14px;font-weight:600;color:var(--charcoal)}
+.email-msg-to{font-size:12px;color:var(--gray);margin-top:1px}
+.email-msg-date{font-size:12px;color:var(--gray-light);white-space:nowrap;flex-shrink:0}
+.email-msg-body{padding:16px 20px;font-size:14px;color:var(--charcoal);line-height:1.75;white-space:pre-wrap}
+.email-msg.respuesta-sistemas .email-msg-header{background:linear-gradient(90deg,rgba(200,83,26,.04),transparent);border-left:3px solid var(--bread)}
+.attachment-card{display:flex;flex-direction:column;border:1px solid rgba(0,0,0,.1);border-radius:8px;overflow:hidden;cursor:pointer;transition:box-shadow .15s;width:160px}
+.attachment-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.attachment-preview{width:160px;height:100px;object-fit:cover;display:block}
+.attachment-name{padding:6px 8px;font-size:11px;color:var(--gray);background:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.img-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out}
+.img-modal.open{display:flex}
+.img-modal img{max-width:90vw;max-height:90vh;border-radius:8px}
+.img-modal-close{position:fixed;top:20px;right:20px;color:white;font-size:28px;cursor:pointer;background:rgba(255,255,255,.15);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:none}
+.chat-img-inline{max-width:240px;border-radius:10px;display:block;cursor:zoom-in;transition:transform .2s;margin:4px 0}
+.chat-img-inline:hover{transform:scale(1.02)}
+.chat-video-inline{max-width:260px;border-radius:10px;display:block;margin:4px 0}
+.cargo-badge{display:inline-flex;align-items:center;gap:4px;background:var(--info-bg);color:var(--info);padding:2px 10px;border-radius:100px;font-size:11px;font-weight:600}
+/* IA Modal */
+.ia-modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:flex-end;justify-content:center}
+.ia-modal-box{background:#fff;width:100%;max-width:600px;border-radius:20px 20px 0 0;max-height:85vh;display:flex;flex-direction:column;animation:slideUpIA .3s ease}
+@keyframes slideUpIA{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.ia-burbuja-user{align-self:flex-end;background:var(--bread);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;font-size:13px;max-width:85%;line-height:1.5}
+.ia-burbuja-ia{align-self:flex-start;background:#F0EBE4;color:var(--charcoal);padding:9px 13px;border-radius:14px 14px 14px 4px;font-size:13px;max-width:85%;line-height:1.6}
+.ia-burbuja-load{align-self:flex-start;background:#F0EBE4;padding:9px 13px;border-radius:14px 14px 14px 4px;font-size:13px;color:var(--gray)}
+</style>
+</head>
+<body class="app-body usuario-page">
+
+<!-- Modal imagen -->
+<div class="img-modal" id="img-modal" onclick="cerrarModal()">
+  <button class="img-modal-close" onclick="cerrarModal()">✕</button>
+  <img id="img-modal-src" src="" alt="">
+</div>
+
+<!-- Modal IA -->
+<div class="ia-modal-wrap" id="ia-modal">
+  <div class="ia-modal-box">
+    <div style="background:linear-gradient(135deg,var(--bread),var(--bread-dark));padding:1rem 1.2rem;border-radius:20px 20px 0 0;display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px">✨</div>
+      <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-weight:700;color:#fff;font-size:15px">Asistente IA — SisteMail</div><div style="font-size:11px;color:rgba(255,255,255,.7)">Soporte técnico y redacción</div></div>
+      <button onclick="cerrarIA()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px">✕</button>
+    </div>
+    <div style="padding:.7rem 1rem;border-bottom:1px solid rgba(0,0,0,.06);display:flex;gap:6px;flex-wrap:wrap;background:var(--cream)">
+      <span style="font-size:11px;color:var(--gray);align-self:center">Preguntas rápidas:</span>
+      <button class="tpl" id="sug-pos">🔄 Reiniciar POS</button>
+      <button class="tpl" id="sug-imp">🖨️ Impresora</button>
+      <button class="tpl" id="sug-net">🌐 Internet</button>
+      <button class="tpl" id="sug-red">✨ Mejorar mi reporte</button>
+    </div>
+    <div id="ia-mensajes" style="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:10px;min-height:180px">
+      <div id="ia-bienvenida" style="text-align:center;color:var(--gray);font-size:13px;padding:1rem">
+        <div style="font-size:28px;margin-bottom:.5rem">✨</div>
+        <strong>¿En qué te puedo ayudar?</strong><br>
+        <span style="font-size:12px">Pregunta sobre soporte técnico, mantenimiento o mejora la redacción de tu reporte</span>
+      </div>
+    </div>
+    <div style="padding:.8rem 1rem;border-top:1px solid rgba(0,0,0,.08);display:flex;gap:8px;align-items:center">
+      <input type="text" id="ia-input" placeholder="Escribe tu pregunta..." style="flex:1;padding:10px 13px;border:1px solid rgba(0,0,0,.12);border-radius:100px;font-size:13px;font-family:'Outfit',sans-serif;outline:none">
+      <button id="ia-send" style="width:40px;height:40px;background:var(--bread);border:none;border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">➤</button>
+    </div>
+  </div>
+</div>
+
+<aside class="sidebar">
+  <div class="sb-brand"><div class="sb-logo"><img src="img/logo.png" alt="Logo"></div><div><div class="sb-name">SisteMail</div><div class="sb-sub">Pan Pa' Ya!</div></div></div>
+  <div class="sb-user">
+    <div class="av" id="user-av" style="background:var(--bread)">--</div>
+    <div>
+      <div class="u-name" id="user-nombre">Cargando...</div>
+      <div class="u-role" id="user-sucursal">Sucursal</div>
+      <div id="user-cargo-badge" style="display:none;margin-top:3px"></div>
+    </div>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-title">📧 Correo</div>
+    <button class="ni on" id="nav-bandeja" onclick="sv('bandeja');cerrarSidebarMovil()"><span class="ni-icon">📨</span> Bandeja <span class="nbadge nb-red" id="badge-bandeja" style="display:none">0</span></button>
+    <button class="ni" id="nav-compose" onclick="sv('compose');cerrarSidebarMovil()"><span class="ni-icon">📝</span> Nuevo reporte</button>
+    <button class="ni" id="nav-enviados" onclick="sv('enviados');cerrarSidebarMovil()"><span class="ni-icon">📋</span> Mis reportes</button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-title">💬 Chat con Sistemas</div>
+    <button class="ni" id="nav-chat" onclick="sv('chat');cerrarSidebarMovil();if(window._marcarChatLeido)_marcarChatLeido()">
+      <span class="ni-icon">💬</span> Chat con Sistemas
+      <span class="nbadge nb-red" id="badge-chat-usuario" style="display:none">0</span>
+    </button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-title">Cuenta</div>
+    <button class="ni" id="nav-reunion" onclick="sv('reunion');cerrarSidebarMovil()"><span class="ni-icon">🗓️</span> Solicitar reunión</button>
+    <button class="ni" id="nav-notif" onclick="sv('notif');cerrarSidebarMovil()"><span class="ni-icon">🔔</span> Notificaciones <span class="nbadge nb-red" id="badge-notif" style="display:none">0</span></button>
+    <button class="ni" onclick="sv('config');cerrarSidebarMovil()"><span class="ni-icon">⚙️</span> Configuración</button>
+    <button class="ni" onclick="abrirIA();cerrarSidebarMovil()" style="color:rgba(255,200,100,.8)"><span class="ni-icon">🤖</span> Asistente IA</button>
+  </div>
+  <div class="sb-bot"><button class="ni" onclick="cerrarSesion()"><span class="ni-icon">⇢</span> Cerrar sesión</button></div>
+</aside>
+
+<div class="main-content">
+  <div class="topbar">
+    <button class="mobile-header-btn" id="menu-btn" onclick="toggleSidebar()">☰</button>
+    <span class="topbar-title" id="page-title">Bandeja de entrada</span>
+    <div class="searchbar"><span style="font-size:13px;opacity:.4">🔍</span><input type="text" placeholder="Buscar..." oninput="buscarCorreos(this.value)"></div>
+    <div class="tb-actions">
+      <button class="ib" onclick="sv('notif')">🔔<span class="ndot" id="notif-dot" style="display:none"></span></button>
+      <div class="av" style="background:var(--bread);cursor:pointer" id="top-av">--</div>
+    </div>
+  </div>
+
+  <div class="page-content">
+
+    <!-- BANDEJA -->
+    <div class="view active" id="view-bandeja">
+      <div class="alert-ban" id="alerta-critica" style="display:none">🔴 Reportes críticos sin resolver — <button class="btn bg-d" style="font-size:11px;padding:2px 9px;margin-left:auto" onclick="sv('enviados')">Ver →</button></div>
+      <div class="pg">
+        <div class="panel">
+          <div class="ph"><span class="ph-title">Bandeja de entrada</span><button class="btn bp" onclick="sv('compose')">+ Nuevo reporte</button></div>
+          <div style="padding:.5rem 1rem;background:var(--cream2);border-bottom:1px solid rgba(0,0,0,.05);font-size:12px;color:var(--gray)">
+            📌 Respuestas de Sistemas. Tus reportes en <button onclick="sv('enviados')" style="background:none;border:none;color:var(--bread);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;text-decoration:underline">Mis reportes</button>
+          </div>
+          <ul class="elist" id="lista-bandeja"><li style="padding:2rem;text-align:center;color:var(--gray);font-size:13px">Cargando...</li></ul>
+        </div>
+        <div>
+          <div class="panel" style="margin-bottom:12px">
+            <div class="ph"><span class="ph-title">Mi actividad</span></div>
+            <ul class="act-list" id="actividad-lista"><li class="act-i"><div class="act-dot" style="background:var(--gray-light)"></div><div><div class="act-txt">Sin actividad</div></div></li></ul>
+          </div>
+          <div class="panel">
+            <div class="ph"><span class="ph-title">Estado de mis tickets</span></div>
+            <div style="padding:.8rem 1.1rem;display:flex;flex-direction:column;gap:9px;">
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span>✅ Resueltos</span><strong id="cnt-resueltos">0</strong></div>
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span>🔄 En proceso</span><strong id="cnt-proceso">0</strong></div>
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span>🔴 Críticos</span><strong id="cnt-criticos" style="color:var(--danger)">0</strong></div>
+              <div class="prog"><div class="prog-fill" id="prog-fill" style="width:0%;background:var(--success)"></div></div>
+              <div style="font-size:11px;color:var(--gray)" id="pct-texto">0% resueltos</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPOSE -->
+    <div class="view" id="view-compose">
+      <div style="max-width:720px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <h3 style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem">📧 Nuevo reporte</h3>
+          <button class="btn" style="background:linear-gradient(135deg,var(--bread),var(--bread-dark));color:#fff;border:none" onclick="abrirIA()">✨ Ayuda IA</button>
+        </div>
+        <div class="compose-box">
+          <div class="cb-header"><span style="font-size:17px">📋</span><h3>Reporte de incidencia</h3><span style="font-size:11px;color:rgba(255,255,255,.4)" id="cb-sucursal-label">Sucursal</span></div>
+          <div class="cf"><label>Para</label><input value="sistemas@panpaya.com" readonly style="color:var(--bread)"></div>
+          <div class="cf"><label>Asunto</label><input type="text" id="reporte-asunto" placeholder="Ej: Falla en sistema POS — Caja 2"></div>
+          <div class="cf"><label>Urgencia</label>
+            <div class="urg-sel">
+              <div class="uopt sel-r" id="urg-critico" onclick="selUrgencia('critico')">🔴 Crítico</div>
+              <div class="uopt" id="urg-importante" onclick="selUrgencia('importante')">🟡 Importante</div>
+              <div class="uopt" id="urg-normal" onclick="selUrgencia('normal')">🟢 Normal</div>
+            </div>
+          </div>
+          <div class="cf"><label>Categoría</label>
+            <select id="reporte-categoria">
+              <option value="Sistema POS">Sistema POS / Caja</option>
+              <option value="Conectividad">Conectividad / Internet</option>
+              <option value="Hardware">Hardware / Equipos</option>
+              <option value="Software">Software / Aplicaciones</option>
+              <option value="Mantenimiento">Mantenimiento preventivo</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="cb-body" id="reporte-cuerpo" contenteditable="true"></div>
+          <div class="attach-zone">
+            <input type="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple id="reporte-archivos" onchange="mostrarArchivos(this)">
+            📸 Adjunta foto o video del fallo (opcional)
+          </div>
+          <div id="archivos-preview" style="display:flex;gap:6px;flex-wrap:wrap;padding:0 1.2rem .6rem"></div>
+          <div class="cb-footer">
+            <button class="btn bp" id="btn-enviar-reporte" onclick="enviarReporte()">📤 Enviar reporte</button>
+            <button class="btn bo" onclick="limpiarCompose()">🗑 Limpiar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MIS REPORTES -->
+    <div class="view" id="view-enviados">
+      <div class="panel">
+        <div class="ph"><span class="ph-title">📤 Mis reportes enviados</span><span id="total-env" style="font-size:12px;color:var(--gray)"></span></div>
+        <div style="padding:.5rem 1rem;background:var(--cream2);border-bottom:1px solid rgba(0,0,0,.05);font-size:12px;color:var(--gray)">Haz clic en un reporte para ver el hilo completo</div>
+        <ul class="elist" id="lista-enviados"><li style="padding:2rem;text-align:center;color:var(--gray);font-size:13px">Cargando...</li></ul>
+      </div>
+    </div>
+
+    <!-- DETALLE -->
+    <div class="view" id="view-detalle">
+      <button onclick="sv('enviados')" style="font-size:12px;color:var(--gray);background:none;border:none;cursor:pointer;margin-bottom:1rem;display:flex;align-items:center;gap:5px">← Volver a mis reportes</button>
+      <div style="background:#fff;border-radius:var(--r);box-shadow:var(--shadow);border:1px solid rgba(0,0,0,.04);padding:1.2rem 1.4rem;margin-bottom:12px" id="detalle-cabecera"></div>
+      <div id="email-thread-container" style="max-width:760px"></div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="view" id="view-chat">
+      <div style="background:var(--info-bg);border:1px solid rgba(22,80,160,.15);border-radius:var(--rs);padding:.7rem 1rem;font-size:12px;color:var(--info);margin-bottom:1rem">
+        💬 <strong>Chat con Sistemas</strong> — Escribe mensajes, envía fotos, audios y videos directamente al equipo de Sistemas.
+      </div>
+      <div class="chat-layout">
+        <div class="chat-list-panel" style="display:none">
+          <div class="cl-header"><div class="cl-title">💬 Chat</div><div class="cl-sub">Chat directo</div></div>
+          <div class="cl-scroll">
+            <div class="ci on"><div class="av" style="background:var(--info);width:34px;height:34px;font-size:11px">SI</div><div class="ci-online"></div><div style="flex:1"><div class="ci-name">Equipo de Sistemas</div><div class="ci-last">🟢 En línea</div></div></div>
+          </div>
+        </div>
+        <div class="chat-main" id="user-chat-main">
+          <div class="chat-header">
+            <div class="av" style="background:var(--info)">SI</div>
+            <div style="flex:1"><div class="chat-header-name">Equipo de Sistemas</div><div class="chat-header-status">🟢 En línea</div></div>
+          </div>
+          <div class="chat-messages" id="chat-mensajes-user">
+            <div style="text-align:center;color:var(--gray);font-size:13px;padding:2rem">
+              <div style="font-size:32px;margin-bottom:.5rem">💬</div>
+              Chat con Sistemas — escribe tu mensaje abajo.
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <div id="user-recording-ui" style="display:none" class="recording-bar">
+              <div class="rec-dot"></div><span class="rec-time" id="user-rec-timer">0:00</span>
+              <span style="font-size:12px;color:var(--danger);flex:1;margin-left:8px">Grabando...</span>
+              <button style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--danger)" onclick="cancelarGrabacionUser()">✕</button>
+              <button class="btn bg-d" style="font-size:11px;padding:3px 10px" onclick="enviarAudioUser()">Enviar ▶</button>
+            </div>
+            <div id="user-upload-bar" style="display:none;padding:.4rem;font-size:12px;color:var(--info);text-align:center">⏳ Subiendo...</div>
+            <div id="user-normal-input">
+              <div class="ci-bar">
+                <input type="text" id="user-chat-input" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter')enviarMensajeChatUser()">
+                <button class="ci-ico" onclick="iniciarGrabacionUser()" title="Audio">🎙️</button>
+                <label class="ci-ico" style="cursor:pointer" title="Imagen"><input type="file" accept="image/*" style="display:none" onchange="subirArchivoUser(this,'imagen')">📸</label>
+                <label class="ci-ico" style="cursor:pointer" title="Video"><input type="file" accept="video/*" style="display:none" onchange="subirArchivoUser(this,'video')">🎬</label>
+                <label class="ci-ico" style="cursor:pointer" title="Documento"><input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="subirArchivoUser(this,'documento')">📄</label>
+                <button class="send-btn" onclick="enviarMensajeChatUser()">&#9658;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOLICITAR REUNIÓN -->
+    <div class="view" id="view-reunion">
+      <div style="max-width:600px">
+        <!-- REUNIONES CONFIRMADAS -->
+        <div class="panel" style="margin-bottom:1rem;border-left:4px solid var(--info)">
+          <div class="ph"><span class="ph-title">📅 Mis reuniones confirmadas</span></div>
+          <div style="padding:.5rem .8rem" id="mis-reuniones-confirmadas">
+            <div style="padding:.8rem;text-align:center;color:var(--gray);font-size:12px">Sin reuniones programadas</div>
+          </div>
+        </div>
+
+        <h3 style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin-bottom:1rem">📝 Solicitar reunión con Sistemas</h3>
+        <div class="compose-box">
+          <div class="cb-header"><span>📅</span><h3>Nueva solicitud</h3></div>
+          <div class="cf"><label>Motivo de la reunión</label><input type="text" id="sol-motivo" placeholder="Ej: Revisión falla sistema POS..."></div>
+          <div class="cf"><label>Fecha sugerida</label><input type="date" id="sol-fecha"></div>
+          <div class="cf"><label>Hora sugerida</label><input type="time" id="sol-hora" value="10:00"></div>
+          <div class="cf"><label>Tu correo (para recibir confirmación)</label><input type="email" id="sol-correo" placeholder="tu.nombre@panpaya.com"></div>
+          <div class="cf"><label>Notas adicionales (opcional)</label><input type="text" id="sol-notas" placeholder="Información extra que necesite saber Sistemas"></div>
+          <div style="background:var(--info-bg);border-radius:var(--rs);padding:.6rem .8rem;margin:0 1.2rem .8rem;font-size:12px;color:var(--info)">
+            💡 <strong>Sistemas coordinará la reunión</strong> y te enviará el link cuando confirmen la fecha.
+          </div>
+          <div class="cb-footer">
+            <button class="btn bp" onclick="enviarSolicitudReunion()">📤 Enviar solicitud</button>
+            <button class="btn bo" onclick="limpiarSolicitud()">🗑 Limpiar</button>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:1rem">
+          <div class="ph"><span class="ph-title">Mis solicitudes enviadas</span></div>
+          <div id="mis-solicitudes"><div style="padding:1.5rem;text-align:center;color:var(--gray);font-size:13px">Sin solicitudes aún</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTIFICACIONES -->
+    <div class="view" id="view-notif">
+      <div class="panel">
+        <div class="ph"><span class="ph-title">🔔 Notificaciones</span><button class="btn bo" onclick="marcarTodasLeidas()" style="font-size:11px">Marcar leídas</button></div>
+        <div id="lista-notif"><div style="padding:2rem;text-align:center;color:var(--gray);font-size:13px">Sin notificaciones</div></div>
+      </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="view" id="view-config">
+      <div style="max-width:520px">
+        <div class="panel">
+          <div class="ph"><span class="ph-title">⚙️ Configuración</span></div>
+          <div style="padding:1.2rem;display:flex;flex-direction:column;gap:12px">
+            <div><label style="font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Nombre</label><input type="text" id="cfg-nombre" style="width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,.1);border-radius:8px;font-size:13px;font-family:'Outfit',sans-serif;outline:none"></div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Sucursal</label><input type="text" id="cfg-sucursal" readonly style="width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,.1);border-radius:8px;font-size:13px;background:var(--cream);font-family:'Outfit',sans-serif;outline:none"></div>
+            <div id="cfg-cargo-row" style="display:none">
+              <label style="font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Cargo</label>
+              <select id="cfg-cargo" style="width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,.1);border-radius:8px;font-size:13px;font-family:'Outfit',sans-serif;outline:none">
+                <option value="">Selecciona tu cargo...</option>
+                <option>Gerencia</option><option>Subgerencia</option><option>Contabilidad</option>
+                <option>Recursos Humanos</option><option>Cartera y Tesorería</option><option>Jurídico</option>
+                <option>Compras y Proveedores</option><option>Operaciones</option><option>Logística</option>
+                <option>Marketing</option><option>Ventas</option><option>Auditoría</option>
+                <option>Sistemas</option><option>Desarrollo</option><option>Soporte TI</option><option>Otro cargo</option>
+              </select>
+            </div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Correo</label><input type="text" id="cfg-email" readonly style="width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,.1);border-radius:8px;font-size:13px;background:var(--cream);font-family:'Outfit',sans-serif;outline:none"></div>
+            <button class="btn bp" style="width:fit-content" onclick="guardarConfig()">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Barra móvil -->
+<div class="mobile-nav" id="mobile-nav">
+  <div class="mobile-nav-items">
+    <button class="mn-item on" id="mn-bandeja" onclick="sv('bandeja');mnAct('mn-bandeja')"><span class="mn-ico">📥</span>Bandeja<span class="mn-badge" id="mn-b-bandeja" style="display:none">!</span></button>
+    <button class="mn-item" id="mn-compose" onclick="sv('compose');mnAct('mn-compose')"><span class="mn-ico">✏️</span>Reportar</button>
+    <button class="mn-item" id="mn-chat" onclick="sv('chat');mnAct('mn-chat')"><span class="mn-ico">💬</span>Chat</button>
+    <button class="mn-item" onclick="abrirIA()"><span class="mn-ico">✨</span>IA</button>
+    <button class="mn-item" onclick="confirmarCerrarSesion()" style="color:rgba(255,100,100,.8)"><span class="mn-ico">🚪</span>Salir</button>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div class="toast" id="toast"><span id="toast-msg"></span></div>
+
+<!-- Scripts al final para no bloquear el render -->
+<script src="js/ia-config.js"></script>
+<script type="module" src="js/usuario-app.js?v=1781297074"></script>
+<script src="js/usuario-mobile.js" defer></script>
+<script>
+// Activar vista inicial cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function(){
+  // Mostrar bandeja por defecto
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  var v = document.getElementById('view-bandeja');
+  if(v) v.classList.add('active');
+  var n = document.getElementById('nav-bandeja');
+  if(n) n.classList.add('on');
+});
+</script>
+</body>
+</html>

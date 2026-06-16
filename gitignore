@@ -1,0 +1,17 @@
+# Firebase
+firebase-debug.log
+.firebase/
+.firebaserc
+
+# Credenciales locales
+*.env
+.env.local
+secrets.js
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp

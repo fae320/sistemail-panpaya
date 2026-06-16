@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<title>SisteMail — Panel Sistemas</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/estilos.css">
+<script>
+// Disponible inmediatamente para los onclick del HTML
+window.cerrarSidebarMovil = function() {
+  document.querySelector('.sidebar')?.classList.remove('mobile-open');
+  document.getElementById('sidebar-overlay')?.classList.remove('show');
+};
+window.toggleSidebar = function() {
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if(!sb) return;
+  const open = sb.classList.toggle('mobile-open');
+  if(ov) ov.classList.toggle('show', open);
+};
+// Abrir chat en móvil
+window.abrirChatMovil = function(){
+  if(window.innerWidth > 768) return;
+  const panel = document.getElementById('chat-main-panel');
+  const btn = document.getElementById('btn-volver-chat');
+  if(panel){ panel.classList.add('mobile-abierto'); }
+  if(btn){ btn.style.display = 'block'; }
+};
+// Cerrar chat en móvil — volver a la lista
+window.cerrarChatMovil = function(){
+  const panel = document.getElementById('chat-main-panel');
+  const btn = document.getElementById('btn-volver-chat');
+  if(panel){ panel.classList.remove('mobile-abierto'); }
+  if(btn){ btn.style.display = 'none'; }
+};
+window.cerrarSesion = function() {
+  if (confirm('¿Deseas cerrar sesión?')) {
+    window._cerrando = true;
+    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
+      .then(m => {
+        const app = window._firebaseApp;
+        if (app) return m.signOut(m.getAuth(app));
+      })
+      .catch(() => {})
+      .finally(() => {
+        sessionStorage.clear();
+        window.location.replace('index.html');
+      });
+  }
+};
+window.confirmarCerrarSesion = window.cerrarSesion;
+window.toggleNotifPanel = function(){
+  var p = document.getElementById('notif-panel');
+  if(!p) return;
+  p.style.display = p.style.display==='none' ? 'block' : 'none';
+};
+window.activarNotificaciones = function(){
+  if(!('Notification' in window)){ alert('Tu navegador no soporta notificaciones'); return; }
+  Notification.requestPermission().then(function(p){
+    var btn = document.getElementById('btn-activar-notif');
+    if(p === 'granted'){
+      if(btn) btn.style.display = 'none';
+      if(window.mostrarToast) mostrarToast('Notificaciones activadas');
+    } else {
+      alert('Para recibir alertas, activa las notificaciones en la configuración del navegador');
+    }
+  });
+};
+// Cerrar al hacer clic fuera
+document.addEventListener('click', function(e){
+  var p = document.getElementById('notif-panel');
+  if(p && p.style.display==='block' && !p.contains(e.target) && !e.target.closest('.ib')){
+    p.style.display = 'none';
+  }
+});
+</script>
+<style>
+.reunion-alert{position:fixed;top:20px;right:20px;width:360px;background:#fff;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.22);z-index:9999;overflow:hidden;border:1px solid rgba(0,0,0,.08);transform:translateX(130%);transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
+.reunion-alert.show{transform:translateX(0)}
+.ra-header{background:linear-gradient(135deg,#C8531A,#8B3510);padding:14px 16px;display:flex;align-items:center;gap:10px}
+.ra-icon{width:42px;height:42px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;animation:pulsIcon 1.2s ease infinite}
+@keyframes pulsIcon{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.ra-title{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fff;flex:1}
+.ra-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.ra-body{padding:14px 16px}
+.ra-btns{display:flex;gap:8px;flex-wrap:wrap}
+.ra-btn-join{flex:1;padding:10px;background:var(--bread);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:'Outfit',sans-serif;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px}
+.ra-btn-sec{padding:10px 12px;background:var(--cream2);color:var(--gray);border:1px solid rgba(0,0,0,.1);border-radius:8px;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer}
+.ra-countdown{font-size:12px;color:var(--danger);font-weight:600;margin-top:8px;text-align:center}
+.persona-card{background:#fff;border-radius:var(--rs);border:1px solid rgba(0,0,0,.07);padding:.7rem .8rem;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);transition:.15s}
+.persona-card:hover{transform:translateY(-2px);box-shadow:0 4px 18px rgba(0,0,0,.1)}
+.cargo-tag{font-size:10px;color:var(--info);background:var(--info-bg);padding:1px 7px;border-radius:100px;font-weight:600}
+/* IA */
+.ia-modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:flex-end;justify-content:center}
+.ia-modal-box{background:#fff;width:100%;max-width:600px;border-radius:20px 20px 0 0;max-height:85vh;display:flex;flex-direction:column;animation:slideUpIA .3s ease}
+@keyframes slideUpIA{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.ia-burbuja-user{align-self:flex-end;background:var(--info);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;font-size:13px;max-width:85%;line-height:1.5}
+.ia-burbuja-ia{align-self:flex-start;background:#F0EBE4;color:var(--charcoal);padding:9px 13px;border-radius:14px 14px 14px 4px;font-size:13px;max-width:85%;line-height:1.6}
+.ia-burbuja-load{align-self:flex-start;background:#F0EBE4;padding:9px 13px;border-radius:14px 14px 14px 4px;font-size:13px;color:var(--gray)}
+</style>
+</head>
+<body class="app-body">
+
+<!-- ALERTA REUNIÓN -->
+<div class="reunion-alert" id="reunion-alert">
+  <div class="ra-header">
+    <div class="ra-icon">📅</div>
+    <div class="ra-title">¡Es hora de tu reunión!</div>
+    <button class="ra-close" onclick="cerrarAlerta()">✕</button>
+  </div>
+  <div class="ra-body">
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;color:var(--charcoal);margin-bottom:3px" id="ra-titulo">Reunión</div>
+    <div style="font-size:13px;color:var(--gray);margin-bottom:12px" id="ra-detalle">Con: — · Hora: —</div>
+    <div class="ra-btns">
+      <a id="ra-link" href="#" target="_blank" class="ra-btn-join">🔗 Unirse a la reunión</a>
+      <button class="ra-btn-sec" onclick="posponerReunion()">⏰ +5 min</button>
+      <button class="ra-btn-sec" onclick="cerrarAlerta()">Cerrar</button>
+    </div>
+    <div class="ra-countdown" id="ra-countdown"></div>
+  </div>
+</div>
+
+<!-- MODAL IA ADMIN -->
+<div class="ia-modal-wrap" id="ia-modal">
+  <div class="ia-modal-box">
+    <div style="background:linear-gradient(135deg,var(--info),#0D3A7A);padding:1rem 1.2rem;border-radius:20px 20px 0 0;display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px">✨</div>
+      <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-weight:700;color:#fff;font-size:15px">Asistente IA — Sistemas</div><div style="font-size:11px;color:rgba(255,255,255,.7)">Diagnóstico técnico y redacción</div></div>
+      <button onclick="cerrarIA()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px">✕</button>
+    </div>
+    <div style="padding:.7rem 1rem;border-bottom:1px solid rgba(0,0,0,.06);display:flex;gap:6px;flex-wrap:wrap;background:var(--cream)">
+      <span style="font-size:11px;color:var(--gray);align-self:center">Sugerencias:</span>
+      <button class="tpl" id="sug-diag">🔍 Diagnóstico POS</button>
+      <button class="tpl" id="sug-red">✨ Mejorar respuesta</button>
+      <button class="tpl" id="sug-net">🌐 Falla internet</button>
+    </div>
+    <div id="ia-mensajes" style="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:10px;min-height:180px">
+      <div id="ia-bienvenida" style="text-align:center;color:var(--gray);font-size:13px;padding:1rem">
+        <div style="font-size:28px;margin-bottom:.5rem">✨</div>
+        <strong>Asistente de Sistemas</strong><br>
+        <span style="font-size:12px">Diagnóstico técnico, soluciones y mejora de respuestas</span>
+      </div>
+    </div>
+    <div style="padding:.8rem 1rem;border-top:1px solid rgba(0,0,0,.08);display:flex;gap:8px;align-items:center">
+      <input type="text" id="ia-input" placeholder="Consulta técnica o texto a mejorar..." style="flex:1;padding:10px 13px;border:1px solid rgba(0,0,0,.12);border-radius:100px;font-size:13px;font-family:'Outfit',sans-serif;outline:none">
+      <button id="ia-send" style="width:40px;height:40px;background:var(--info);border:none;border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">➤</button>
+    </div>
+  </div>
+</div>
+
+<aside class="sidebar">
+  <div class="sb-brand"><div class="sb-logo"><img src="img/logo.png" alt="Logo"></div><div><div class="sb-name">SisteMail</div><div class="sb-sub">Panel Sistemas</div></div></div>
+  <div class="sb-user">
+    <div class="av av-lg" id="adm-av" style="background:var(--info)">CM</div>
+    <div><div class="u-name" id="adm-nombre">Cargando...</div><div class="u-role">Administrador · Sistemas</div></div>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-title">📧 Correo</div>
+    <button class="ni on" id="nav-dashboard" onclick="sv('dashboard');cerrarSidebarMovil()"><span class="ni-icon">⊞</span> Inicio</button>
+    <button class="ni" id="nav-compose" onclick="sv('compose');cerrarSidebarMovil()"><span class="ni-icon">📝</span> Redactar correo</button>
+    <button class="ni" id="nav-correos" onclick="sv('correos');cerrarSidebarMovil()"><span class="ni-icon">📨</span> Correos entrantes <span class="nbadge nb-red" id="badge-correos" style="display:none">0</span></button>
+    <button class="ni" id="nav-criticos" onclick="sv('criticos');cerrarSidebarMovil()"><span class="ni-icon">🚨</span> Alertas críticas <span class="nbadge nb-red" id="badge-criticos" style="display:none">0</span></button>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-title">💬 Chat y Gestión</div>
+    <button class="ni" id="nav-usuarios" onclick="sv('usuarios');cerrarSidebarMovil()"><span class="ni-icon">👤</span> Usuarios pendientes <span class="nbadge nb-red" id="badge-usuarios" style="display:none">0</span></button>
+    <button class="ni" id="nav-chat" onclick="sv('chat');cerrarSidebarMovil()"><span class="ni-icon">💬</span> Chat sucursales <span class="nbadge nb-red" id="badge-chat-admin" style="display:none">0</span></button>
+    <button class="ni" id="nav-reuniones" onclick="sv('reuniones');cerrarSidebarMovil()"><span class="ni-icon">🗓️</span> Reuniones <span class="nbadge nb-orange" id="badge-reuniones" style="display:none">!</span></button>
+    <button class="ni" id="nav-solicitudes" onclick="sv('solicitudes');cerrarSidebarMovil()"><span class="ni-icon">🤝</span> Piden reunión <span class="nbadge nb-red" id="badge-solicitudes" style="display:none">0</span></button>
+    <button class="ni" id="nav-mapa" onclick="sv('mapa');cerrarSidebarMovil()"><span class="ni-icon">🗺️</span> Ver sucursales</button>
+    <button class="ni" id="nav-sucursales" onclick="sv('sucursales');cerrarSidebarMovil()"><span class="ni-icon">🏬</span> Sucursales</button>
+    <button class="ni" id="nav-reportes" onclick="sv('reportes');cerrarSidebarMovil()"><span class="ni-icon">📈</span> Estadísticas</button>
+    <button class="ni" onclick="abrirIA();cerrarSidebarMovil()" style="color:rgba(100,180,255,.8)"><span class="ni-icon">🤖</span> Asistente IA</button>
+  </div>
+  <div class="sb-bot"><button class="ni" onclick="confirmarCerrarSesion()"><span class="ni-icon">⇢</span> Cerrar sesión</button></div>
+</aside>
+
+<div class="main-content">
+  <div class="topbar">
+    <button class="mobile-header-btn" onclick="toggleSidebar()">☰</button>
+    <span class="topbar-title" id="page-title">Dashboard</span>
+    <div class="searchbar"><span style="font-size:13px;opacity:.4">🔍</span><input type="text" placeholder="Buscar..." oninput="buscarAdmin(this.value)"></div>
+    <div class="tb-actions">
+      <button class="ib" onclick="toggleNotifPanel()" title="Notificaciones" style="position:relative">🔔<span class="ndot" id="notif-dot" style="display:none"></span><span id="notif-count" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;border-radius:100px;font-size:10px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;border:2px solid #fff">0</span></button>
+      <!-- Botón activar notificaciones (solo si no hay permiso) -->
+      <button id="btn-activar-notif" onclick="activarNotificaciones()" style="display:none;align-items:center;gap:5px;background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer">🔔 Activar alertas</button>
+      <!-- Panel de notificaciones -->
+      <div id="notif-panel" style="display:none;position:fixed;top:56px;right:16px;width:320px;max-height:420px;background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:9999;overflow:hidden;border:1px solid rgba(0,0,0,.08)">
+        <div style="padding:.8rem 1rem;border-bottom:1px solid rgba(0,0,0,.06);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-weight:700;font-size:14px">🔔 Notificaciones</span>
+          <button onclick="toggleNotifPanel()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray)">✕</button>
+        </div>
+        <div id="notif-lista" style="overflow-y:auto;max-height:340px;padding:.5rem 0">
+          <div style="padding:1.5rem;text-align:center;color:var(--gray);font-size:13px">Sin notificaciones nuevas</div>
+        </div>
+      </div>
+      <div class="av" style="background:var(--info)" id="top-av">CM</div>
+    </div>
+  </div>
+
+  <div class="page-content">
+
+    <!-- USUARIOS PENDIENTES -->
+    <div class="view" id="view-usuarios">
+      <div style="background:#FFF3CD;border:1px solid #FFD700;border-radius:var(--rs);padding:.8rem 1rem;font-size:13px;color:#856404;margin-bottom:1rem;display:flex;align-items:center;gap:8px">
+        🔐 <strong>Control de acceso</strong> — Solo usuarios aprobados pueden entrar al sistema.
+      </div>
+
+      <!-- CREAR USUARIO -->
+      <div class="panel" style="margin-bottom:1rem">
+        <div class="ph">
+          <span class="ph-title">➕ Crear nuevo usuario</span>
+          <button class="btn bp" onclick="toggleFormCrearUsuario()">+ Crear usuario</button>
+        </div>
+        <div id="form-crear-usuario" style="display:none;padding:1rem">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:10px">
+            <div class="cf"><label>Nombre completo</label><input type="text" id="nu-nombre" placeholder="Carlos Méndez"></div>
+            <div class="cf"><label>Correo corporativo</label><input type="email" id="nu-email" placeholder="ejemplo@panpaya.com.co"></div>
+            <div class="cf"><label>Contraseña temporal</label><input type="text" id="nu-pass" placeholder="Mínimo 6 caracteres"></div>
+            <div class="cf"><label>Cargo</label>
+              <select id="nu-cargo">
+                <option value="">Selecciona un cargo...</option>
+                <optgroup label="Directivos">
+                  <option>Gerente General</option><option>Subgerente</option><option>Director de Operaciones</option><option>Director Administrativo</option>
+                </optgroup>
+                <optgroup label="Administrativo y Financiero">
+                  <option>Contador</option><option>Auxiliar Contable</option><option>Tesorero</option><option>Cartera</option><option>Facturacion</option><option>Recursos Humanos</option><option>Nomina</option><option>Juridico</option><option>Compras</option><option>Proveedores</option>
+                </optgroup>
+                <optgroup label="Operaciones y Logistica">
+                  <option>Jefe de Operaciones</option><option>Coordinador de Logistica</option><option>Conductor</option><option>Bodeguero</option><option>Inventarios</option><option>Almacenista</option><option>Jefe de Produccion</option><option>Panadero</option><option>Pastelero</option><option>Auxiliar de Produccion</option>
+                </optgroup>
+                <optgroup label="Ventas y Mercadeo">
+                  <option>Director de Ventas</option><option>Jefe de Mercadeo</option><option>Asesor Comercial</option><option>Community Manager</option><option>Disenador Grafico</option>
+                </optgroup>
+                <optgroup label="Sucursales">
+                  <option>Administrador de Sucursal</option><option>Cajero</option><option>Auxiliar de Caja</option><option>Vendedor</option><option>Atencion al Cliente</option><option>Domiciliario</option>
+                </optgroup>
+                <optgroup label="Sistemas y TI">
+                  <option>Jefe de Sistemas</option><option>Tecnico de Sistemas</option><option>Desarrollador</option><option>Soporte TI</option>
+                </optgroup>
+                <optgroup label="Otros">
+                  <option>Auditor</option><option>Asesor Juridico</option><option>Servicios Generales</option><option>Seguridad</option><option>Otro cargo</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:10px">
+            <div class="cf"><label>Empresa</label>
+              <select id="nu-empresa">
+                <option value="Pan Pa Ya">🥖 Pan Pa' Ya!</option>
+                <option value="Multipan">🍞 Multipan</option>
+                <option value="Multicarriel">🚛 Multicarriel</option>
+                <option value="Otra">🏢 Otra empresa</option>
+              </select>
+            </div>
+            <div class="cf"><label>Sucursal / Oficina</label>
+              <select id="nu-sucursal">
+                <option value="">Selecciona...</option>
+                <optgroup label="🏪 Sucursales">
+                  <option>Pan Pa Ya Sucursal Chapinero 58</option><option>Pan Pa Ya Sucursal Mazuren</option><option>Pan Pa Ya Sucursal Multiplaza</option><option>Pan Pa Ya Sucursal Pepe Sierra</option><option>Pan Pa Ya Sucursal 32</option><option>Pan Pa Ya Sucursal Bulevar 52</option><option>Pan Pa Ya Sucursal 96</option><option>Pan Pa Ya Sucursal 98</option><option>Pan Pa Ya Sucursal 100</option><option>Pan Pa Ya Sucursal 103</option><option>Pan Pa Ya Sucursal 106</option><option>Pan Pa Ya Sucursal 138</option><option>Pan Pa Ya Sucursal Alkosto 68</option><option>Pan Pa Ya Sucursal Alkosto 170</option><option>Pan Pa Ya Sucursal Avenida 19</option><option>Pan Pa Ya Sucursal Batan 125</option><option>Pan Pa Ya Sucursal Bella Suiza 127</option><option>Pan Pa Ya Sucursal Bosque</option><option>Pan Pa Ya Sucursal Cafe 98</option><option>Pan Pa Ya Sucursal Calleja</option><option>Pan Pa Ya Sucursal Cedritos 147</option><option>Pan Pa Ya Sucursal Chia</option><option>Pan Pa Ya Sucursal Cota</option><option>Pan Pa Ya Sucursal Home Center 80</option><option>Pan Pa Ya Sucursal Home Center 170</option><option>Pan Pa Ya Sucursal Home Center Cajica</option><option>Pan Pa Ya Sucursal Home Center Dorado</option><option>Pan Pa Ya Sucursal Retiro 82</option><option>Pan Pa Ya Sucursal Rosales</option><option>Pan Pa Ya Sucursal Salitre</option><option>Pan Pa Ya Sucursal Santa Fe</option><option>Pan Pa Ya Sucursal Sarmiento</option><option>Pan Pa Ya Sucursal Suba</option><option>Pan Pa Ya Sucursal Unicentro</option><option>Pan Pa Ya Sucursal Calle 80</option>
+                </optgroup>
+                <optgroup label="🏢 Oficina Central"><option value="Oficina Central">Oficina Central</option></optgroup>
+              </select>
+            </div>
+            <div class="cf"><label>Tipo de acceso</label>
+              <select id="nu-tipo">
+                <option value="usuario">👤 Usuario — Sucursal/Oficina</option>
+                <option value="tecnico">🔧 Técnico de Sistemas — Soporte</option>
+                <option value="admin">👑 Administrador — Acceso total</option>
+              </select>
+            </div>
+          </div>
+          <div style="background:var(--cream2);border-radius:var(--rs);padding:.8rem 1rem;margin-bottom:10px;font-size:12px">
+            <div style="font-weight:700;color:var(--charcoal);margin-bottom:6px">📋 Niveles de acceso:</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div>👤 <strong>Usuario</strong> — Reportar problemas, ver respuestas, chat con Sistemas</div>
+              <div>🔧 <strong>Técnico</strong> — Responder correos, chat, ver reportes. <span style="color:var(--danger)">NO puede</span>: aprobar usuarios, ver estadísticas, crear cuentas</div>
+              <div>👑 <strong>Administrador</strong> — Acceso total. Aprueba usuarios, ve todo, firma autorizaciones</div>
+            </div>
+          </div>
+          <div style="background:var(--info-bg);border-radius:var(--rs);padding:.6rem .8rem;font-size:11px;color:var(--info);margin-bottom:10px">
+            💡 El usuario recibe correo y contraseña por otro medio. Puede cambiarla al ingresar.
+          </div>
+          <button class="btn bp" id="btn-crear-usuario" onclick="crearUsuarioDesdeAdmin()">✅ Crear usuario</button>
+          <button class="btn bo" onclick="toggleFormCrearUsuario()" style="margin-left:8px">Cancelar</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:1rem">
+        <div class="ph"><span class="ph-title">👥 Solicitudes de acceso</span><span class="sbadge sb-crit" id="label-usuarios-pend">0 pendientes</span></div>
+        <div id="lista-usuarios-pendientes"><div style="padding:2rem;text-align:center;color:var(--gray);font-size:13px">Cargando...</div></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-title">✅ Usuarios registrados</span></div>
+        <div id="lista-usuarios-aprobados"><div style="padding:1rem;text-align:center;color:var(--gray);font-size:13px">Cargando...</div></div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="stats-row">
+        <div class="sc red"><div class="sc-label">Críticos</div><div class="sc-num" id="stat-criticos">0</div><div class="sc-trend bad" id="stat-criticos-sub">Sin alertas</div><div class="sc-ico">🚨</div></div>
+        <div class="sc amber"><div class="sc-label">En proceso</div><div class="sc-num" id="stat-proceso">0</div><div class="sc-trend">Abiertos</div><div class="sc-ico">⚙️</div></div>
+        <div class="sc green"><div class="sc-label">Resueltos</div><div class="sc-num" id="stat-resueltos">0</div><div class="sc-trend">Este mes</div><div class="sc-ico">✔️</div></div>
+        <div class="sc blue"><div class="sc-label">Total</div><div class="sc-num" id="stat-total">0</div><div class="sc-trend">Histórico</div><div class="sc-ico">📊</div></div>
+      </div>
+      <div class="reminder-badge" id="reminder-reunion" style="display:none">
+        📅 <span id="reminder-texto">Reunión próxima</span>
+        <button class="btn bo" style="font-size:11px;margin-left:auto" onclick="sv('reuniones')">Ver →</button>
+      </div>
+      <div class="pg">
+        <div>
+          <div class="panel" style="margin-bottom:12px">
+            <div class="ph"><span class="ph-title">🔴 Críticos activos</span><span class="sbadge sb-crit" id="label-criticos">0</span></div>
+            <ul class="elist" id="lista-criticos-dash"><li style="padding:1.5rem;text-align:center;color:var(--gray);font-size:13px">Sin alertas 🎉</li></ul>
+          </div>
+          <div class="panel">
+            <div class="ph"><span class="ph-title">📊 Por sucursal</span></div>
+            <div class="chart-bars" id="chart-sucursales"><div style="text-align:center;color:var(--gray);font-size:12px;width:100%;padding:1rem">Sin datos</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="panel" style="margin-bottom:12px">
+            <div class="ph"><span class="ph-title">Actividad reciente</span></div>
+            <ul class="act-list" id="actividad-admin"><li class="act-i"><div class="act-dot" style="background:var(--gray-light)"></div><div><div class="act-txt">Sin actividad</div></div></li></ul>
+          </div>
+          <div class="panel">
+            <div class="ph"><span class="ph-title">Categorías</span></div>
+            <div style="padding:.8rem 1.1rem;display:flex;flex-direction:column;gap:9px" id="chart-categorias"><div style="font-size:12px;color:var(--gray)">Sin datos</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CORREOS -->
+    <!-- REDACTAR CORREO -->
+    <div class="view" id="view-compose">
+      <div style="max-width:680px">
+        <div class="compose-box">
+          <div class="cb-header"><span>✏️</span><h3>Redactar correo</h3></div>
+
+          <!-- PARA: sucursal destino -->
+          <div class="cf">
+            <label>Para (sucursal u oficina)</label>
+            <select id="adm-compose-para" onchange="window.cargarDestinatarios(this.value)">
+              <option value="">Selecciona destinatario...</option>
+              <optgroup label="🏪 Sucursales">
+                <option>Pan Pa Ya Sucursal Chapinero 58</option><option>Pan Pa Ya Sucursal Mazuren</option><option>Pan Pa Ya Sucursal Multiplaza</option><option>Pan Pa Ya Sucursal Pepe Sierra</option><option>Pan Pa Ya Sucursal 32</option><option>Pan Pa Ya Sucursal Bulevar 52</option><option>Pan Pa Ya Sucursal 96</option><option>Pan Pa Ya Sucursal 98</option><option>Pan Pa Ya Sucursal 100</option><option>Pan Pa Ya Sucursal 103</option><option>Pan Pa Ya Sucursal 106</option><option>Pan Pa Ya Sucursal 138</option><option>Pan Pa Ya Sucursal Alkosto 68</option><option>Pan Pa Ya Sucursal Alkosto 170</option><option>Pan Pa Ya Sucursal Avenida 19</option><option>Pan Pa Ya Sucursal Batan 125</option><option>Pan Pa Ya Sucursal Bella Suiza 127</option><option>Pan Pa Ya Sucursal Bosque</option><option>Pan Pa Ya Sucursal Cafe 98</option><option>Pan Pa Ya Sucursal Calleja</option><option>Pan Pa Ya Sucursal Cedritos 147</option><option>Pan Pa Ya Sucursal Chia</option><option>Pan Pa Ya Sucursal Cota</option><option>Pan Pa Ya Sucursal Home Center 80</option><option>Pan Pa Ya Sucursal Home Center 170</option><option>Pan Pa Ya Sucursal Home Center Cajica</option><option>Pan Pa Ya Sucursal Home Center Dorado</option><option>Pan Pa Ya Sucursal Retiro 82</option><option>Pan Pa Ya Sucursal Rosales</option><option>Pan Pa Ya Sucursal Salitre</option><option>Pan Pa Ya Sucursal Santa Fe</option><option>Pan Pa Ya Sucursal Sarmiento</option><option>Pan Pa Ya Sucursal Suba</option><option>Pan Pa Ya Sucursal Unicentro</option><option>Pan Pa Ya Sucursal Calle 80</option>
+              </optgroup>
+              <optgroup label="🏢 Oficina Central">
+                <option value="Oficina Central">Oficina Central (general)</option>
+              </optgroup>
+              <optgroup label="📢 Todos">
+                <option value="TODAS">Todas las sucursales</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- Correo específico opcional -->
+          <div class="cf">
+            <label>Destinatario específico <span style="font-size:11px;color:var(--gray);font-weight:400">(opcional)</span></label>
+            <select id="adm-compose-correo" style="font-size:13px">
+              <option value="">— Toda la sucursal / oficina —</option>
+            </select>
+            <div style="font-size:11px;color:var(--gray);margin-top:4px">Selecciona una sucursal primero para ver sus usuarios registrados.</div>
+          </div>
+
+          <div class="cf"><label>Asunto</label>
+            <input type="text" id="adm-compose-asunto" placeholder="Ej: Actualización sistema POS, Recordatorio...">
+          </div>
+
+          <div class="cf"><label>Categoría</label>
+            <select id="adm-compose-categoria">
+              <option value="general">General</option>
+              <option value="soporte">Soporte técnico</option>
+              <option value="actualizacion">Actualización</option>
+              <option value="recordatorio">Recordatorio</option>
+              <option value="urgente">Urgente</option>
+              <option value="autorizacion">Autorización</option>
+              <option value="prestamo">Préstamo de equipo</option>
+              <option value="visita">Visita técnica</option>
+            </select>
+          </div>
+
+          <!-- Prioridad -->
+          <div class="cf"><label>Prioridad</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" id="adm-urg-normal" class="urg-btn active" onclick="selUrgenciaAdmin('normal')" style="padding:6px 16px;border-radius:100px;border:2px solid var(--success);background:var(--success);color:#fff;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Normal</button>
+              <button type="button" id="adm-urg-media" class="urg-btn" onclick="selUrgenciaAdmin('media')" style="padding:6px 16px;border-radius:100px;border:2px solid var(--warning);background:#fff;color:var(--warning);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Media</button>
+              <button type="button" id="adm-urg-critico" class="urg-btn" onclick="selUrgenciaAdmin('critico')" style="padding:6px 16px;border-radius:100px;border:2px solid var(--danger);background:#fff;color:var(--danger);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Crítico</button>
+            </div>
+          </div>
+
+          <div class="cf"><label>Mensaje</label>
+            <div id="adm-compose-cuerpo" contenteditable="true"
+              style="min-height:140px;border:1px solid rgba(0,0,0,.12);border-radius:var(--rs);padding:.7rem;font-family:'Outfit',sans-serif;font-size:14px;outline:none;background:#fff;line-height:1.6"
+              data-placeholder="Escribe el mensaje aquí..."></div>
+          </div>
+
+          <!-- Adjuntos -->
+          <div class="cf">
+            <label>Adjuntar archivos (fotos, documentos)</label>
+            <label style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:var(--cream);border:1px dashed rgba(0,0,0,.2);border-radius:var(--rs);cursor:pointer;font-size:13px;color:var(--gray)">
+              📎 Seleccionar archivos
+              <input type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" style="display:none" onchange="mostrarArchivosAdmin(this)">
+            </label>
+            <div id="adm-archivos-preview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+          </div>
+
+          <div class="cb-footer">
+            <button class="btn bp" id="btn-adm-enviar" onclick="enviarCorreoAdmin()">📤 Enviar correo</button>
+            <button class="btn bo" onclick="limpiarComposeAdmin()">🗑 Limpiar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-correos">
+      <div class="mail-layout">
+        <div class="mail-list-panel">
+          <div class="mail-toolbar">
+            <button class="mt-btn on" onclick="filtrarCorreos('todos',this)">Todos</button>
+            <button class="mt-btn" onclick="filtrarCorreos('critico',this)">🔴</button>
+            <button class="mt-btn" onclick="filtrarCorreos('importante',this)">🟡</button>
+            <button class="mt-btn" onclick="filtrarCorreos('normal',this)">🟢</button>
+          </div>
+          <div class="mail-scroll"><ul class="elist" id="lista-correos-admin"><li style="padding:2rem;text-align:center;color:var(--gray);font-size:13px">Cargando...</li></ul></div>
+        </div>
+        <div class="mail-detail-panel" id="mail-detail">
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--gray);gap:.5rem;padding:2rem;text-align:center">
+            <div style="font-size:44px">📬</div>
+            <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:.95rem;color:var(--charcoal)">Selecciona un correo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRÍTICOS -->
+    <div class="view" id="view-criticos">
+      <div class="alert-ban">🚨 Reportes críticos — atención inmediata</div>
+      <div class="panel"><div class="ph"><span class="ph-title">🔴 Sin resolver</span></div><ul class="elist" id="lista-criticos-view"><li style="padding:2rem;text-align:center;color:var(--success);font-size:13px">Sin reportes críticos 🎉</li></ul></div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="view" id="view-chat">
+      <div style="background:var(--info-bg);border:1px solid rgba(22,80,160,.15);border-radius:var(--rs);padding:.7rem 1rem;font-size:12px;color:var(--info);margin-bottom:1rem">💬 <strong>Chat con sucursales</strong> — Selecciona una sucursal u oficina para chatear.</div>
+
+      <!-- MÓVIL: selector de sucursal visible -->
+      <div id="chat-mobile-selector" style="display:none;margin-bottom:.8rem">
+        <div style="font-size:12px;font-weight:600;color:var(--gray);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em">Selecciona:</div>
+        <div id="chat-contactos-movil" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+
+      <div class="chat-layout">
+        <div class="chat-list-panel" id="chat-panel-lateral">
+          <div class="cl-scroll" id="chat-contactos-admin"></div>
+        </div>
+        <div class="chat-main" id="chat-main-panel">
+          <div class="chat-header">
+            <div class="av" id="chat-av" style="background:var(--danger)">--</div>
+            <div style="flex:1"><div class="chat-header-name" id="chat-nombre-actual">Selecciona una sucursal</div><div class="chat-header-status">🟢 En línea</div></div>
+          </div>
+          <div class="chat-messages" id="chat-mensajes-admin"><div style="text-align:center;color:var(--gray);font-size:13px;padding:2rem">Selecciona una sucursal</div></div>
+          <div class="chat-input-area">
+            <div id="recording-ui" style="display:none" class="recording-bar">
+              <div class="rec-dot"></div><span class="rec-time" id="rec-timer">0:00</span>
+              <span style="font-size:12px;color:var(--danger);flex:1;margin-left:8px">Grabando...</span>
+              <button style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--danger)" onclick="cancelarGrabacion()">✕</button>
+              <button class="btn bg-d" style="font-size:11px;padding:3px 10px" onclick="enviarAudio()">Enviar ▶</button>
+            </div>
+            <div id="upload-bar" style="display:none;padding:.4rem;font-size:12px;color:var(--info);text-align:center">⏳ Subiendo...</div>
+            <div id="normal-input">
+              <div class="ci-bar">
+                <input type="text" id="chat-input" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter')enviarMensajeChat()">
+                <div style="display:flex;gap:4px">
+                  <button class="ci-ico" onclick="iniciarGrabacion()" title="Audio">🎙️</button>
+                  <label class="ci-ico" style="cursor:pointer" title="Imagen"><input type="file" accept="image/*" style="display:none" onchange="subirArchivoCloudinary(this,'imagen')">📸</label>
+                  <label class="ci-ico" style="cursor:pointer" title="Video"><input type="file" accept="video/*" style="display:none" onchange="subirArchivoCloudinary(this,'video')">🎬</label>
+                  <label class="ci-ico" style="cursor:pointer" title="Documento PDF/Word/Excel"><input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" style="display:none" onchange="subirArchivoCloudinary(this,'documento')">📄</label>
+                  <label class="ci-ico" style="cursor:pointer" title="Evidencia técnica"><input type="file" accept="image/*" style="display:none" onchange="subirArchivoCloudinary(this,'evidencia')">🔧</label>
+                </div>
+                <button class="send-btn" onclick="enviarMensajeChat()">&#9658;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REUNIONES -->
+    <div class="view" id="view-reuniones">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <h3 style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem">📅 Agenda de reuniones</h3>
+        <button class="btn bp" onclick="toggleFormReunion()">+ Nueva reunión</button>
+      </div>
+      <div class="reminder-badge" id="prox-reunion" style="display:none">⏰ <span id="prox-reunion-texto"></span></div>
+      <div id="form-reunion" style="display:none;margin-bottom:1.2rem">
+        <div class="compose-box" style="max-width:640px">
+          <div class="cb-header"><span>📅</span><h3>Programar reunión</h3></div>
+          <div class="cf"><label>Título</label><input type="text" id="re-titulo" placeholder="Ej: Visita técnica Chapinero 58"></div>
+          <div class="cf"><label>Con quién</label>
+            <select id="re-persona" onchange="document.getElementById('cf-externo').style.display=this.value==='externo'?'flex':'none'">
+              <option value="">Selecciona...</option>
+              <optgroup label="Sucursales"><option>Pan Pa Ya Sucursal Chapinero 58</option><option>Pan Pa Ya Sucursal Mazuren</option><option>Pan Pa Ya Sucursal Multiplaza</option><option>Pan Pa Ya Sucursal Pepe Sierra</option><option>Pan Pa Ya Sucursal 32</option><option>Pan Pa Ya Sucursal Bulevar 52</option><option>Pan Pa Ya Sucursal 96</option><option>Pan Pa Ya Sucursal 98</option><option>Pan Pa Ya Sucursal 100</option><option>Pan Pa Ya Sucursal 103</option><option>Pan Pa Ya Sucursal 106</option><option>Pan Pa Ya Sucursal 138</option><option>Pan Pa Ya Sucursal Alkosto 68</option><option>Pan Pa Ya Sucursal Alkosto 170</option><option>Pan Pa Ya Sucursal Avenida 19</option><option>Pan Pa Ya Sucursal Batan 125</option><option>Pan Pa Ya Sucursal Bella Suiza 127</option><option>Pan Pa Ya Sucursal Bosque</option><option>Pan Pa Ya Sucursal Cafe 98</option><option>Pan Pa Ya Sucursal Calleja</option><option>Pan Pa Ya Sucursal Cedritos 147</option><option>Pan Pa Ya Sucursal Chia</option><option>Pan Pa Ya Sucursal Cota</option><option>Pan Pa Ya Sucursal Home Center 80</option><option>Pan Pa Ya Sucursal Home Center 170</option><option>Pan Pa Ya Sucursal Home Center Cajica</option><option>Pan Pa Ya Sucursal Home Center Dorado</option><option>Pan Pa Ya Sucursal Retiro 82</option><option>Pan Pa Ya Sucursal Rosales</option><option>Pan Pa Ya Sucursal Salitre</option><option>Pan Pa Ya Sucursal Santa Fe</option><option>Pan Pa Ya Sucursal Sarmiento</option><option>Pan Pa Ya Sucursal Suba</option><option>Pan Pa Ya Sucursal Unicentro</option><option>Pan Pa Ya Sucursal Calle 80</option><option>Oficina Central</option></optgroup>
+              <optgroup label="Otros"><option value="externo">Persona externa</option></optgroup>
+            </select>
+          </div>
+          <div class="cf" id="cf-externo" style="display:none"><label>Nombre</label><input type="text" id="re-externo" placeholder="Nombre del proveedor"></div>
+          <div class="cf"><label>Fecha</label><input type="date" id="re-fecha"></div>
+          <div class="cf"><label>Hora</label><input type="time" id="re-hora" value="10:00"></div>
+          <div class="cf"><label>Link reunión</label><input type="url" id="re-link" placeholder="https://meet.google.com/xxx"></div>
+          <div style="padding:.2rem 1.2rem .8rem;display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:11px;color:var(--gray);font-weight:600;text-transform:uppercase;letter-spacing:.04em">Crear reunión en:</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="btn bo" onclick="abrirPlataforma('meet')" style="display:flex;align-items:center;gap:6px;font-size:12px">
+                <img src="https://img.icons8.com/color/24/google-meet.png" style="width:18px;height:18px"> Google Meet
+              </button>
+              <button type="button" class="btn bo" onclick="abrirPlataforma('teams')" style="display:flex;align-items:center;gap:6px;font-size:12px">
+                <img src="https://img.icons8.com/color/24/microsoft-teams.png" style="width:18px;height:18px"> Microsoft Teams
+              </button>
+              <button type="button" class="btn bo" onclick="abrirPlataforma('zoom')" style="display:flex;align-items:center;gap:6px;font-size:12px">
+                <img src="https://img.icons8.com/color/24/zoom.png" style="width:18px;height:18px"> Zoom
+              </button>
+              <button type="button" class="btn bo" onclick="abrirPlataforma('webex')" style="display:flex;align-items:center;gap:6px;font-size:12px">
+                <img src="https://img.icons8.com/color/24/cisco-webex.png" style="width:18px;height:18px"> Webex
+              </button>
+            </div>
+            <div style="font-size:11px;color:var(--gray)">💡 Abre la plataforma, crea la reunión, copia el link y pégalo arriba.</div>
+          </div>
+          <div class="cf"><label>Notas</label><input type="text" id="re-notas" placeholder="Tema de la reunión"></div>
+          <div class="cf">
+            <label>Correos de invitados</label>
+            <div id="chips-correos" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <select id="sel-correo-inv" style="flex:1;min-width:180px" onchange="agregarCorreoChip(this.value);this.value=''">
+                <option value="">+ Agregar correo registrado...</option>
+              </select>
+              <input type="email" id="inp-correo-ext" placeholder="correo@externo.com" style="flex:1;min-width:160px">
+              <button type="button" class="btn bo" onclick="agregarCorreoExterno()" style="font-size:12px;padding:6px 12px">+ Agregar</button>
+            </div>
+            <input type="hidden" id="re-correo-inv">
+            <div style="font-size:11px;color:var(--gray);margin-top:4px">💡 Selecciona registrados o agrega externos. Al guardar se notifica por chat.</div>
+          </div>
+          <div class="cb-footer">
+            <button class="btn bp" onclick="guardarReunion()">💾 Guardar</button>
+            <button class="btn bo" onclick="toggleFormReunion()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+      <div id="lista-reuniones"><div style="padding:2rem;text-align:center;color:var(--gray);font-size:13px">Cargando...</div></div>
+    </div>
+
+    <!-- SOLICITUDES -->
+    <div class="view" id="view-solicitudes">
+      <div style="background:var(--purple-bg);border:1px solid rgba(91,52,196,.15);border-radius:var(--rs);padding:.7rem 1rem;font-size:12px;color:var(--purple);margin-bottom:1rem">🙋 Solicitudes de reunión de sucursales.</div>
+      <div id="lista-solicitudes"><div style="padding:2rem;text-align:center;color:var(--gray);font-size:13px">Cargando...</div></div>
+    </div>
+
+    <!-- GESTIONAR SUCURSALES -->
+    <div class="view" id="view-sucursales">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+        <h3 style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem">🏪 Gestionar sucursales</h3>
+        <button class="btn bp" onclick="toggleFormSucursal()">+ Nueva sucursal</button>
+      </div>
+      <!-- Formulario nueva sucursal -->
+      <div id="form-nueva-sucursal" style="display:none;margin-bottom:1.2rem">
+        <div class="compose-box" style="max-width:500px">
+          <div class="cb-header"><span>🏪</span><h3>Agregar nueva sucursal</h3></div>
+          <div class="cf"><label>Nombre de la sucursal</label>
+            <input type="text" id="ns-nombre" placeholder="Ej: Sucursal Soacha, Sucursal Fontibon...">
+            <div style="font-size:11px;color:var(--gray);margin-top:3px">Se guardará como: "Pan Pa Ya Sucursal [nombre]"</div>
+          </div>
+          <div class="cf"><label>Ciudad / Barrio</label>
+            <input type="text" id="ns-ciudad" placeholder="Ej: Bogotá, Soacha, Chía...">
+          </div>
+          <div class="cf"><label>Dirección (opcional)</label>
+            <input type="text" id="ns-direccion" placeholder="Ej: Cra 15 #80-23">
+          </div>
+          <div style="background:var(--info-bg);border-radius:var(--rs);padding:.6rem .8rem;margin:.5rem 1.2rem;font-size:12px;color:var(--info)">
+            💡 Al agregar la sucursal aparecerá automáticamente en el chat, mapa y listas del sistema.
+          </div>
+          <div class="cb-footer">
+            <button class="btn bp" onclick="crearSucursal()">✅ Agregar sucursal</button>
+            <button class="btn bo" onclick="toggleFormSucursal()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+      <!-- Lista sucursales -->
+      <div class="panel">
+        <div class="ph">
+          <span class="ph-title">Lista de sucursales activas</span>
+          <span class="sbadge sb-res" id="badge-total-suc">Cargando...</span>
+        </div>
+        <div id="lista-sucursales-admin" style="padding:.5rem"></div>
+      </div>
+    </div>
+
+    <!-- MAPA -->
+    <div class="view" id="view-mapa">
+      <div class="panel">
+        <div class="ph"><span class="ph-title">📍 Sucursales y Oficina Central</span><span style="font-size:11px;color:var(--gray)">Tiempo real</span></div>
+        <div style="padding:.5rem 1.2rem .3rem;font-size:11px;color:var(--gray);display:flex;gap:1rem;flex-wrap:wrap"><span>🟢 Sin novedad</span><span>🟡 Pendientes</span><span>🔴 Crítico</span></div>
+        <div style="padding:1rem 1.2rem 1.2rem">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem;color:var(--charcoal);padding:.4rem 0 .5rem;border-bottom:2px solid var(--cream2);margin-bottom:.8rem;display:flex;align-items:center;gap:8px">
+            🏪 Sucursales Pan Pa' Ya <span style="font-size:11px;font-weight:400;color:var(--gray);margin-left:auto" id="mapa-resumen-suc"></span>
+          </div>
+          <div class="map-grid" style="grid-template-columns:repeat(4,1fr)" id="mapa-sucursales"></div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem;color:var(--charcoal);padding:.4rem 0 .5rem;border-bottom:2px solid var(--cream2);margin-top:1.5rem;margin-bottom:.8rem;display:flex;align-items:center;gap:8px">
+            🏢 Oficina Central <span style="font-size:11px;font-weight:400;color:var(--gray);margin-left:auto" id="mapa-resumen-of"></span>
+          </div>
+          <div id="mapa-oficina-estado" style="margin-bottom:.8rem"></div>
+          <div style="font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem">👥 Personas registradas</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="mapa-oficina-personas">
+            <div style="font-size:12px;color:var(--gray);padding:.5rem;grid-column:1/-1">Cargando...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MÉTRICAS -->
+    <div class="view" id="view-reportes">
+      <div class="stats-row">
+        <div class="sc green"><div class="sc-label">Tasa resolución</div><div class="sc-num" id="met-tasa">0%</div></div>
+        <div class="sc blue"><div class="sc-label">Total</div><div class="sc-num" id="met-total">0</div></div>
+        <div class="sc amber"><div class="sc-label">Resueltos</div><div class="sc-num" id="met-res">0</div></div>
+        <div class="sc red"><div class="sc-label">Pendientes</div><div class="sc-num" id="met-pend">0</div></div>
+      </div>
+      <div class="panel"><div class="ph"><span class="ph-title">Reportes por sucursal</span></div><div class="chart-bars" id="chart-met-sucursales" style="height:140px"></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Barra móvil -->
+<div class="mobile-nav" id="mobile-nav">
+  <div class="mobile-nav-items">
+    <button class="mn-item on" id="mn-dashboard" onclick="sv('dashboard');mnAct('mn-dashboard')"><span class="mn-ico">📊</span>Dashboard</button>
+    <button class="mn-item" id="mn-correos" onclick="sv('correos');mnAct('mn-correos')"><span class="mn-ico">📥</span>Correos<span class="mn-badge" id="mn-b-correos" style="display:none">!</span></button>
+    <button class="mn-item" id="mn-chat" onclick="sv('chat');mnAct('mn-chat')"><span class="mn-ico">💬</span>Chat</button>
+    <button class="mn-item" id="mn-mapa" onclick="sv('mapa');mnAct('mn-mapa')"><span class="mn-ico">📍</span>Mapa</button>
+    <button class="mn-item" onclick="confirmarCerrarSesion()" style="color:rgba(255,100,100,.8)"><span class="mn-ico">🚪</span>Salir</button>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div class="toast" id="toast"><span id="toast-msg"></span></div>
+
+<!-- Scripts al final -->
+<script src="js/ia-config.js"></script>
+<script src="js/notificaciones.js"></script>
+<script type="module" src="js/admin-app.js?v=1781297678"></script>
+<script src="js/admin-mobile.js" defer></script>
+</body>
+</html>

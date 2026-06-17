@@ -89,28 +89,26 @@ function cargarPerfil() {
 // ── HELPER: construir link de documento ──
 function construirLinkDoc(url, nombre_archivo) {
   const ext = (nombre_archivo||'').split('.').pop().toLowerCase();
-  const esPDF = ext === 'pdf';
   const nombre = nombre_archivo || 'documento';
-  
-  if (esPDF) {
-    // Google Docs Viewer para PDFs — se ve en navegador sin descargar
-    const googleUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(url) + '&embedded=false';
-    return '<a href="' + googleUrl + '" target="_blank" '
-      + 'style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#FCE8E8;color:#C8201A;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">'
-      + '<span style="background:#C8201A;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">PDF</span>'
-      + '👁 ' + nombre + '</a>'
-      + ' <a href="' + url + '" download="' + nombre + '" '
-      + 'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">⬇</a>';
-  } else {
-    // Word/Excel/otros — botón para abrir en Cloudinary + descargar
-    const extUp = ext.toUpperCase() || 'DOC';
-    return '<a href="' + url + '" target="_blank" '
-      + 'style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">'
-      + '<span style="background:var(--info);color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">' + extUp + '</span>'
-      + '👁 ' + nombre + '</a>'
-      + ' <a href="' + url + '" download="' + nombre + '" '
-      + 'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:#EAF3DE;color:#2E7D32;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">⬇</a>';
-  }
+  const esPDF = ext === 'pdf';
+  const esWord = ['doc','docx'].includes(ext);
+  const esExcel = ['xls','xlsx'].includes(ext);
+  const esPPT = ['ppt','pptx'].includes(ext);
+  const esOffice = esWord || esExcel || esPPT;
+  const extUp = ext.toUpperCase() || 'DOC';
+
+  // Google Viewer abre PDF, Word, Excel, PPT sin descargar
+  const googleUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(url);
+  const bgColor = esPDF ? '#FCE8E8' : esWord ? '#E8F0FE' : esExcel ? '#E8F5E9' : 'var(--info-bg)';
+  const txtColor = esPDF ? '#C8201A' : esWord ? '#1A73E8' : esExcel ? '#2E7D32' : 'var(--info)';
+  const bgBadge = esPDF ? '#C8201A' : esWord ? '#1A73E8' : esExcel ? '#2E7D32' : 'var(--info)';
+
+  return '<a href="' + googleUrl + '" target="_blank" '
+    + 'style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:' + bgColor + ';color:' + txtColor + ';border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">'
+    + '<span style="background:' + bgBadge + ';color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">' + extUp + '</span>'
+    + '👁 ' + nombre + '</a>'
+    + ' <a href="' + url + '" download="' + nombre + '" '
+    + 'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:#F0F0F0;color:#555;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px" title="Descargar">⬇</a>';
 }
 
 // ── CORREOS ──
@@ -507,6 +505,8 @@ window.enviarRespuestaUsuario = async function() {
       fd.append('file', archivo);
       fd.append('upload_preset', PRESET_U);
       fd.append('folder', 'sistemail/correos');
+      fd.append('use_filename', 'true');
+      fd.append('unique_filename', 'false');
       const r = await fetch('https://api.cloudinary.com/v1_1/'+CLOUD_NAME_U+'/'+cloudTipo+'/upload', {method:'POST',body:fd});
       const d = await r.json();
       if (!d.secure_url) continue;
@@ -596,6 +596,8 @@ window.adjuntarArchivoRespuestaUser = async function(input) {
       fd.append('file', archivo);
       fd.append('upload_preset', PRESET_U);
       fd.append('folder', 'sistemail/correos');
+      fd.append('use_filename', 'true');
+      fd.append('unique_filename', 'false');
       const r = await fetch('https://api.cloudinary.com/v1_1/'+CLOUD_NAME_U+'/'+cloudTipo+'/upload', {method:'POST',body:fd});
       const d = await r.json();
       if (!d.secure_url) continue;
@@ -701,6 +703,8 @@ async function subirFoto(archivo) {
   const fd = new FormData();
   fd.append('upload_preset','sistemail_panpaya');
   fd.append('folder','sistemail/reportes');
+  fd.append('use_filename','true');
+  fd.append('unique_filename','false');
   fd.append('file', archivo);
   // Documentos como raw, imágenes/videos normal
   const esDoc = !archivo.type.startsWith('image') && !archivo.type.startsWith('video');
@@ -972,6 +976,8 @@ window.subirArchivoUser = async function(input, tipo) {
     fd.append('file', archivo);
     fd.append('upload_preset', PRESET_U);
     fd.append('folder', 'sistemail/chat');
+    fd.append('use_filename', 'true');
+    fd.append('unique_filename', 'false');
     const r = await fetch('https://api.cloudinary.com/v1_1/'+CLOUD_NAME_U+'/'+cloudTipo+'/upload', {method:'POST',body:fd});
     const d = await r.json();
     if (!d.secure_url) throw new Error(d.error?.message || 'Error subiendo archivo');

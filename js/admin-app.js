@@ -25,15 +25,18 @@ let chatUnsubscribe=null;
 let cerrando=false; // bandera cerrar sesión
 
 // -- AUTH CON PERSISTENCIA --
+let _adminIniciado = false;
 setPersistence(auth, browserLocalPersistence).then(() => {
   onAuthStateChanged(auth, async(user) => {
-    if (cerrando) return; // bloquear si estamos cerrando
+    if (cerrando) return;
     if (!user) { window.location.href='index.html'; return; }
+    if (_adminIniciado) return; // evitar doble ejecución
     try {
       const snap = await getDoc(doc(db,'usuarios',user.uid));
       if (!snap.exists()) { window.location.href='index.html'; return; }
       const perfil = snap.data();
       if (perfil.rol !== 'admin') { window.location.href='usuario.html'; return; }
+      _adminIniciado = true;
       adminActual=user; perfilAdmin=perfil;
       const esTecnico = perfil.subrol === 'tecnico';
       const ini=perfilAdmin.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -659,6 +662,25 @@ function cargarTodosCorreos(){
     actualizarPanelNotif();
   });
 }
+
+// ── HELPER: link de documento ──
+function construirLinkDocAdmin(url, nombre_archivo) {
+  const ext = (nombre_archivo||'').split('.').pop().toLowerCase();
+  const esPDF = ext === 'pdf';
+  const nombre = nombre_archivo || 'documento';
+  if (esPDF) {
+    const googleUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(url) + '&embedded=false';
+    return '<a href="' + googleUrl + '" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:#FCE8E8;color:#C8201A;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600">'
+      + '<span style="background:#C8201A;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">PDF</span>👁 ' + nombre + '</a>'
+      + ' <a href="' + url + '" download="' + nombre + '" style="display:inline-flex;align-items:center;padding:5px 8px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;font-weight:600">⬇</a>';
+  } else {
+    const extUp = ext.toUpperCase()||'DOC';
+    return '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;font-weight:600">'
+      + '<span style="background:var(--info);color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">' + extUp + '</span>👁 ' + nombre + '</a>'
+      + ' <a href="' + url + '" download="' + nombre + '" style="display:inline-flex;align-items:center;padding:5px 8px;background:#EAF3DE;color:#2E7D32;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600">⬇</a>';
+  }
+}
+
 function renderCorreos(correos){
   const lista=document.getElementById('lista-correos-admin');
   if(!correos.length){lista.innerHTML='<li style="padding:2rem;text-align:center;color:var(--gray);font-size:13px">No hay correos.</li>';return;}

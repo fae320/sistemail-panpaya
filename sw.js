@@ -1,18 +1,23 @@
 // ══════════════════════════════════════
 // SISTEMAIL — Service Worker
-// Notificaciones push aunque el navegador esté cerrado
 // ══════════════════════════════════════
 
-self.addEventListener('install', e => { self.skipWaiting(); });
-self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+self.addEventListener('install', e => {
+  // No skipWaiting — evita recargas inesperadas
+  e.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(clients.claim());
+});
 
 self.addEventListener('push', e => {
   const data = e.data?.json() || {};
   e.waitUntil(
     self.registration.showNotification(data.title || '🚨 SisteMail', {
       body: data.body || 'Nuevo reporte crítico',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: '/img/logo.png',
+      badge: '/img/logo.png',
       tag: data.tag || 'sistemail',
       requireInteraction: true,
       data: { url: data.url || '/' }

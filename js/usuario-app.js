@@ -30,28 +30,22 @@ let cerrando = false;
 let mediaRecorderU=null, audioChunksU=[], recSegsU=0, recIntervalU=null;
 // Leer vistaActualUsuario del scope global (definida en HTML inline)
 function getVistaActual(){ return window.vistaActualUsuario || 'bandeja'; }
+let _usuarioIniciado = false;
 // ── AUTH CON PERSISTENCIA ──
 setPersistence(auth, browserLocalPersistence).then(() => {
   onAuthStateChanged(auth, async(user) => {
-    if (cerrando) return; // no hacer nada si estamos cerrando sesión
+    if (cerrando) return;
     if (!user) { window.location.href='index.html'; return; }
+    if (_usuarioIniciado) return;
     try {
       usuarioActual = user;
       const snap = await getDoc(doc(db,'usuarios',user.uid));
       if (!snap.exists()) { window.location.href='index.html'; return; }
       perfilActual = snap.data();
       if (perfilActual.rol === 'admin') { window.location.href='admin.html'; return; }
-
-      if (perfilActual.estado === 'pendiente') {
-        await signOut(auth);
-        window.location.href = 'index.html?msg=pendiente';
-        return;
-      }
-      if (perfilActual.estado === 'rechazado') {
-        await signOut(auth);
-        window.location.href = 'index.html?msg=rechazado';
-        return;
-      }
+      if (perfilActual.estado === 'pendiente') { await signOut(auth); window.location.href='index.html?msg=pendiente'; return; }
+      if (perfilActual.estado === 'rechazado') { await signOut(auth); window.location.href='index.html?msg=rechazado'; return; }
+      _usuarioIniciado = true;
       if (!perfilActual.email && user.email) {
         await updateDoc(doc(db,'usuarios',user.uid), {email: user.email});
         perfilActual.email = user.email;
@@ -88,6 +82,34 @@ function cargarPerfil() {
     const cargoCfg = document.getElementById('cfg-cargo');
     if (cargoRow) cargoRow.style.display = 'block';
     if (cargoCfg) cargoCfg.value = perfilActual.cargo || '';
+  }
+}
+
+
+// ── HELPER: construir link de documento ──
+function construirLinkDoc(url, nombre_archivo) {
+  const ext = (nombre_archivo||'').split('.').pop().toLowerCase();
+  const esPDF = ext === 'pdf';
+  const nombre = nombre_archivo || 'documento';
+  
+  if (esPDF) {
+    // Google Docs Viewer para PDFs — se ve en navegador sin descargar
+    const googleUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(url) + '&embedded=false';
+    return '<a href="' + googleUrl + '" target="_blank" '
+      + 'style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#FCE8E8;color:#C8201A;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">'
+      + '<span style="background:#C8201A;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">PDF</span>'
+      + '👁 ' + nombre + '</a>'
+      + ' <a href="' + url + '" download="' + nombre + '" '
+      + 'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">⬇</a>';
+  } else {
+    // Word/Excel/otros — botón para abrir en Cloudinary + descargar
+    const extUp = ext.toUpperCase() || 'DOC';
+    return '<a href="' + url + '" target="_blank" '
+      + 'style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">'
+      + '<span style="background:var(--info);color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">' + extUp + '</span>'
+      + '👁 ' + nombre + '</a>'
+      + ' <a href="' + url + '" download="' + nombre + '" '
+      + 'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:#EAF3DE;color:#2E7D32;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">⬇</a>';
   }
 }
 
@@ -375,7 +397,7 @@ async function abrirDetalle(c) {
       adjuntosHtml += '<div style="margin-top:.8rem">';
       data.documentos.forEach(d => {
         const ext = (d.nombre||'').split('.').pop().toUpperCase()||'DOC';
-        adjuntosHtml += '<a href="'+d.url+'" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;margin-right:6px;margin-bottom:4px"><span style="background:var(--info);color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">'+ext+'</span>'+(d.nombre||'Documento')+'</a>';
+        adjuntosHtml += construirLinkDoc(d.url, d.nombre);
       });
       adjuntosHtml += '</div>';
     }
@@ -406,7 +428,7 @@ async function abrirDetalle(c) {
           if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
             bodyHtml += '<br><img src="'+r.url+'" style="max-width:200px;border-radius:8px;margin-top:6px" onclick="window.open(this.src)">';
           } else {
-            bodyHtml += '<br><a href="'+r.url+'" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;margin-top:6px">📎 '+(r.nombre_archivo||'Documento')+'</a>';
+            bodyHtml += '<br>' + construirLinkDoc(r.url, r.nombre_archivo);
           }
         }
         msg.innerHTML = '<div class="email-msg-header">'

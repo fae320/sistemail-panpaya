@@ -205,6 +205,14 @@ window.sv = function(v){
         <div class="compose-box">
           <div class="cb-header"><span style="font-size:17px">📋</span><h3>Reporte de incidencia</h3><span style="font-size:11px;color:rgba(255,255,255,.4)" id="cb-sucursal-label">Sucursal</span></div>
           <div class="cf"><label>Para</label><input value="sistemas@panpaya.com" readonly style="color:var(--bread)"></div>
+          <div class="cf">
+            <label>Enviar copia a <span style="font-size:11px;color:var(--gray);font-weight:400">(opcional — otros correos)</span></label>
+            <div id="chips-cc-usuario" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
+            <div style="display:flex;gap:6px">
+              <input type="email" id="reporte-cc-input" placeholder="correo@panpaya.com.co" style="flex:1;font-size:13px">
+              <button type="button" class="btn bo" onclick="window.agregarCCUsuario()" style="font-size:12px;padding:6px 12px;white-space:nowrap">+ Agregar</button>
+            </div>
+          </div>
           <div class="cf"><label>Asunto</label><input type="text" id="reporte-asunto" placeholder="Ej: Falla en sistema POS — Caja 2"></div>
           <div class="cf"><label>Urgencia</label>
             <div class="urg-sel">
@@ -283,7 +291,10 @@ window.sv = function(v){
               <button style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--danger)" onclick="cancelarGrabacionUser()">✕</button>
               <button class="btn bg-d" style="font-size:11px;padding:3px 10px" onclick="enviarAudioUser()">Enviar ▶</button>
             </div>
-            <div id="user-upload-bar" style="display:none;padding:.4rem;font-size:12px;color:var(--info);text-align:center">⏳ Subiendo...</div>
+            <div id="user-upload-bar" style="display:none;padding:.6rem 1rem;background:linear-gradient(90deg,var(--info-bg),#fff);border-radius:12px;margin:.3rem;font-size:12px;color:var(--info);align-items:center;gap:8px">
+              <div style="width:16px;height:16px;border:2px solid var(--info);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div>
+              <span>Subiendo archivo...</span>
+            </div>
             <div id="user-normal-input">
               <div class="ci-bar">
                 <input type="text" id="user-chat-input" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter')enviarMensajeChatUser()">
@@ -386,7 +397,7 @@ window.sv = function(v){
 
 <!-- Scripts al final para no bloquear el render -->
 <script src="js/ia-config.js"></script>
-<script type="module" src="js/usuario-app.js?v=1781704754"></script>
+<script type="module" src="js/usuario-app.js?v=1781795061"></script>
 <script src="js/usuario-mobile.js" defer></script>
 <script>
 // Activar vista inicial cuando el DOM esté listo

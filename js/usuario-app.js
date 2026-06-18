@@ -1,3 +1,29 @@
+window.abrirDocumento = function(url, nombreArchivo) {
+  const nombre = nombreArchivo || url.split('/').pop().split('?')[0];
+  const ext = nombre.split('.').pop().toLowerCase();
+  const esPDF = ext === 'pdf';
+  const esOffice = ['doc','docx','xls','xlsx','ppt','pptx'].includes(ext);
+
+  if (esPDF) {
+    // PDF no se puede ver en Cloudinary raw — descargar directamente
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre; a.target = '_blank';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  } else if (esOffice) {
+    // Word/Excel/PPT — abrir en Office Online (una sola pestaña)
+    window.open('https://view.officeapps.live.com/op/view.aspx?src=' + encodeURIComponent(url), '_blank');
+  } else {
+    window.open(url, '_blank');
+  }
+};
+
+window.descargarDocumento = function(url, nombreArchivo) {
+  const nombre = nombreArchivo || 'documento';
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre; a.target = '_blank';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+};
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -30,13 +56,11 @@ let cerrando = false;
 let mediaRecorderU=null, audioChunksU=[], recSegsU=0, recIntervalU=null;
 // Leer vistaActualUsuario del scope global (definida en HTML inline)
 function getVistaActual(){ return window.vistaActualUsuario || 'bandeja'; }
-let _usuarioIniciado = false;
 // ── AUTH CON PERSISTENCIA ──
 setPersistence(auth, browserLocalPersistence).then(() => {
   onAuthStateChanged(auth, async(user) => {
     if (cerrando) return;
     if (!user) { window.location.href='index.html'; return; }
-    if (_usuarioIniciado) return;
     try {
       usuarioActual = user;
       const snap = await getDoc(doc(db,'usuarios',user.uid));
@@ -45,7 +69,6 @@ setPersistence(auth, browserLocalPersistence).then(() => {
       if (perfilActual.rol === 'admin') { window.location.href='admin.html'; return; }
       if (perfilActual.estado === 'pendiente') { await signOut(auth); window.location.href='index.html?msg=pendiente'; return; }
       if (perfilActual.estado === 'rechazado') { await signOut(auth); window.location.href='index.html?msg=rechazado'; return; }
-      _usuarioIniciado = true;
       if (!perfilActual.email && user.email) {
         await updateDoc(doc(db,'usuarios',user.uid), {email: user.email});
         perfilActual.email = user.email;
@@ -86,30 +109,35 @@ function cargarPerfil() {
 }
 
 
-// ── HELPER: construir link de documento ──
-function construirLinkDoc(url, nombre_archivo) {
-  const ext = (nombre_archivo||'').split('.').pop().toLowerCase();
-  const nombre = nombre_archivo || 'documento';
-  const esPDF = ext === 'pdf';
-  const esWord = ['doc','docx'].includes(ext);
-  const esExcel = ['xls','xlsx'].includes(ext);
-  const esPPT = ['ppt','pptx'].includes(ext);
-  const esOffice = esWord || esExcel || esPPT;
-  const extUp = ext.toUpperCase() || 'DOC';
-
-  // Google Viewer abre PDF, Word, Excel, PPT sin descargar
-  const googleUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(url);
-  const bgColor = esPDF ? '#FCE8E8' : esWord ? '#E8F0FE' : esExcel ? '#E8F5E9' : 'var(--info-bg)';
-  const txtColor = esPDF ? '#C8201A' : esWord ? '#1A73E8' : esExcel ? '#2E7D32' : 'var(--info)';
-  const bgBadge = esPDF ? '#C8201A' : esWord ? '#1A73E8' : esExcel ? '#2E7D32' : 'var(--info)';
-
-  return '<a href="' + googleUrl + '" target="_blank" '
-    + 'style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:' + bgColor + ';color:' + txtColor + ';border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px">'
-    + '<span style="background:' + bgBadge + ';color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">' + extUp + '</span>'
-    + '👁 ' + nombre + '</a>'
-    + ' <a href="' + url + '" download="' + nombre + '" '
-    + 'style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:#F0F0F0;color:#555;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600;margin-top:4px" title="Descargar">⬇</a>';
-}
+// ── CC CORREOS USUARIO ──
+let _ccUsuario = [];
+window.agregarCCUsuario = function() {
+  const inp = document.getElementById('reporte-cc-input');
+  const correo = inp?.value.trim();
+  if (!correo || !correo.includes('@')) { mostrarToast('⚠ Correo inválido'); return; }
+  if (_ccUsuario.includes(correo)) { mostrarToast('Ya está en la lista'); inp.value=''; return; }
+  _ccUsuario.push(correo);
+  inp.value = '';
+  const cont = document.getElementById('chips-cc-usuario'); if(!cont) return;
+  cont.innerHTML = '';
+  _ccUsuario.forEach((c,i) => {
+    const chip = document.createElement('div');
+    chip.style.cssText = 'display:flex;align-items:center;gap:5px;background:var(--info-bg);color:var(--info);border-radius:100px;padding:3px 10px;font-size:12px;font-weight:600';
+    chip.innerHTML = '✉ '+c+' <span onclick="window.quitarCCUsuario('+i+')" style="cursor:pointer;color:var(--danger);font-weight:700;font-size:14px">×</span>';
+    cont.appendChild(chip);
+  });
+};
+window.quitarCCUsuario = function(idx) {
+  _ccUsuario.splice(idx,1);
+  const cont=document.getElementById('chips-cc-usuario');if(!cont)return;
+  cont.innerHTML='';
+  _ccUsuario.forEach((c,i)=>{
+    const chip=document.createElement('div');
+    chip.style.cssText='display:flex;align-items:center;gap:5px;background:var(--info-bg);color:var(--info);border-radius:100px;padding:3px 10px;font-size:12px;font-weight:600';
+    chip.innerHTML='✉ '+c+' <span onclick="window.quitarCCUsuario('+i+')" style="cursor:pointer;color:var(--danger);font-weight:700;font-size:14px">×</span>';
+    cont.appendChild(chip);
+  });
+};
 
 // ── CORREOS ──
 function cargarMisCorreos() {
@@ -357,8 +385,16 @@ async function abrirDetalle(c) {
   sv('detalle');
   window._correoDetalleId = c.id;
   if (_detalleUnsub) { _detalleUnsub(); _detalleUnsub = null; }
-  if (!c.leidoPorUsuario)
-    await updateDoc(doc(db,'correos',c.id), {leidoPorUsuario:true});
+
+  // Marcar como leído por este usuario
+  try {
+    const leidoPor = c.leidoPor || [];
+    const updates = { leidoPorUsuario: true };
+    if (!leidoPor.includes(usuarioActual.uid)) {
+      updates.leidoPor = [...leidoPor, usuarioActual.uid];
+    }
+    await updateDoc(doc(db,'correos',c.id), updates);
+  } catch(e) {}
 
   function renderHilo(data) {
     const urgLabel = data.urgencia==='critico'?'🔴 Crítico':data.urgencia==='importante'?'🟡 Importante':'🟢 Normal';
@@ -395,7 +431,10 @@ async function abrirDetalle(c) {
       adjuntosHtml += '<div style="margin-top:.8rem">';
       data.documentos.forEach(d => {
         const ext = (d.nombre||'').split('.').pop().toUpperCase()||'DOC';
-        adjuntosHtml += construirLinkDoc(d.url, d.nombre);
+        const _ext=(d.nombre||'').split('.').pop().toUpperCase()||'DOC';
+        const _esPDF=_ext==='PDF',_esOff=['DOC','DOCX','XLS','XLSX','PPT','PPTX'].includes(_ext);
+        const _viewUrl=_esPDF?'https://mozilla.github.io/pdf.js/web/viewer.html?file='+encodeURIComponent(d.url):_esOff?'https://view.officeapps.live.com/op/view.aspx?src='+encodeURIComponent(d.url):d.url;
+        if(_esPDF){ adjuntosHtml += '<a href="'+d.url+'" download="'+(d.nombre||'documento')+'" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:#FCE8E8;color:#C8201A;border-radius:8px;font-size:12px;text-decoration:none"><span style="background:#C8201A;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">PDF</span>⬇ '+(d.nombre||'Documento')+'</a>'; } else { adjuntosHtml += '<a href="'+_viewUrl+'" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none"><span style="background:var(--info);color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">'+_ext+'</span>'+(d.nombre||'Documento')+'</a>'; }
       });
       adjuntosHtml += '</div>';
     }
@@ -426,7 +465,10 @@ async function abrirDetalle(c) {
           if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
             bodyHtml += '<br><img src="'+r.url+'" style="max-width:200px;border-radius:8px;margin-top:6px" onclick="window.open(this.src)">';
           } else {
-            bodyHtml += '<br>' + construirLinkDoc(r.url, r.nombre_archivo);
+            const _rExt=(r.nombre_archivo||'').split('.').pop().toUpperCase()||'DOC';
+            const _rPDF=_rExt==='PDF',_rOff=['DOC','DOCX','XLS','XLSX','PPT','PPTX'].includes(_rExt);
+            const _rView=_rPDF?'https://mozilla.github.io/pdf.js/web/viewer.html?file='+encodeURIComponent(r.url):_rOff?'https://view.officeapps.live.com/op/view.aspx?src='+encodeURIComponent(r.url):r.url;
+            if(_rPDF){ bodyHtml += '<a href="'+r.url+'" download="'+(r.nombre_archivo||'documento')+'" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#FCE8E8;color:#C8201A;border-radius:8px;font-size:12px;text-decoration:none;margin-top:6px"><span style="background:#C8201A;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">PDF</span>⬇ '+(r.nombre_archivo||'Documento')+'</a>'; } else { bodyHtml += '<a href="'+_rView+'" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;margin-top:6px">'+_rExt+' '+(r.nombre_archivo||'Documento')+'</a>'; }
           }
         }
         msg.innerHTML = '<div class="email-msg-header">'
@@ -500,13 +542,13 @@ window.enviarRespuestaUsuario = async function() {
     // Subir archivos en cola
     for (const archivo of _archivosRespuesta) {
       const esDoc = !archivo.type.startsWith('image') && !archivo.type.startsWith('video');
-      const cloudTipo = esDoc ? 'raw' : 'image';
+      const esPDFup = archivo?.type==='application/pdf'||archivo?.name?.toLowerCase().endsWith('.pdf');
+      const cloudTipo = (esDoc&&!esPDFup) ? 'raw' : 'image';
       const fd = new FormData();
       fd.append('file', archivo);
       fd.append('upload_preset', PRESET_U);
       fd.append('folder', 'sistemail/correos');
-      fd.append('use_filename', 'true');
-      fd.append('unique_filename', 'false');
+      if(archivo.name) fd.append('filename_override', archivo.name.replace(/[^a-zA-Z0-9._-]/g,'_'));
       const r = await fetch('https://api.cloudinary.com/v1_1/'+CLOUD_NAME_U+'/'+cloudTipo+'/upload', {method:'POST',body:fd});
       const d = await r.json();
       if (!d.secure_url) continue;
@@ -591,13 +633,13 @@ window.adjuntarArchivoRespuestaUser = async function(input) {
 
     for (const archivo of archivos) {
       const esDoc = !archivo.type.startsWith('image') && !archivo.type.startsWith('video');
-      const cloudTipo = esDoc ? 'raw' : 'image';
+      const esPDFup = archivo?.type==='application/pdf'||archivo?.name?.toLowerCase().endsWith('.pdf');
+      const cloudTipo = (esDoc&&!esPDFup) ? 'raw' : 'image';
       const fd = new FormData();
       fd.append('file', archivo);
       fd.append('upload_preset', PRESET_U);
       fd.append('folder', 'sistemail/correos');
-      fd.append('use_filename', 'true');
-      fd.append('unique_filename', 'false');
+      if(archivo.name) fd.append('filename_override', archivo.name.replace(/[^a-zA-Z0-9._-]/g,'_'));
       const r = await fetch('https://api.cloudinary.com/v1_1/'+CLOUD_NAME_U+'/'+cloudTipo+'/upload', {method:'POST',body:fd});
       const d = await r.json();
       if (!d.secure_url) continue;
@@ -643,6 +685,14 @@ function cargarChat() {
       return;
     }
     cont.innerHTML = '';
+
+    // Marcar mensajes del admin como leídos por el usuario
+    snap.docs.forEach(d => {
+      const m = d.data();
+      if (m.esAdmin === true && !m.leidoPorUsuario) {
+        updateDoc(doc(db,'chat',d.id), {leidoPorUsuario: true}).catch(()=>{});
+      }
+    });
     snap.forEach(d => {
       const m = d.data();
       // Para sucursales filtrar por sucursal
@@ -654,7 +704,7 @@ function cargarChat() {
       const hora = m.creadoEn ? new Date(m.creadoEn.seconds*1000).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : '';
       const remitente = esAdmin ? 'Sistemas · '+(m.nombre||'Admin') : (m.nombre||'');
       if (m.tipo === 'texto') {
-        div.innerHTML = (!esPropio ? '<div class="cm-sender">'+remitente+'</div>' : '') + '<div class="cm-bubble">'+m.texto+'</div><div class="cm-time">'+hora+(esPropio?' ✓✓':'')+'</div>';
+        div.innerHTML = (!esPropio ? '<div class="cm-sender">'+remitente+'</div>' : '') + '<div class="cm-bubble">'+m.texto+'</div><div class="cm-time">'+hora+(esPropio?(m.leidoPorAdmin?' <span style="color:#4FC3F7">✓✓</span>':' <span style="color:rgba(255,255,255,.5)">✓</span>'):'')+'</div>';
       } else if (m.tipo === 'audio') {
         const aid = 'a'+Date.now()+Math.random().toString(36).slice(2);
         div.innerHTML = '<div class="cm-sender" style="'+(esPropio?'text-align:right':'')+'">🎙️ Nota de voz</div><div class="cm-audio"><button class="play-btn" id="'+aid+'" onclick="toggleAudio(\''+m.url+'\',\''+aid+'\')">▶</button><div class="waveform"></div><span class="audio-dur">'+(m.duracion||'0:00')+'</span></div><div class="cm-time">'+hora+'</div>';
@@ -667,7 +717,7 @@ function cargarChat() {
         const ext = (nom.split('.').pop()||'').toLowerCase();
         const ico = ext==='pdf'?'PDF':ext.startsWith('doc')?'DOC':ext.startsWith('xls')?'XLS':'FILE';
         div.innerHTML = '<div class="cm-sender" style="'+(esPropio?'text-align:right':'')+'">'+remitente+' Documento</div>'
-          +'<div style="background:rgba(0,0,0,.06);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;max-width:260px;cursor:pointer" onclick="window.open(\''+m.url+'\',\'_blank\')">'
+          +'<div style="background:rgba(0,0,0,.06);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;max-width:260px;cursor:pointer" onclick="abrirDocumento(\''+m.url+'\',\''+(m.nombre_archivo||nom)+'\')">'
           +'<span style="background:var(--info);color:#fff;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:700">'+ico+'</span>'
           +'<div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nom+'</div>'
           +'<div style="font-size:10px;color:var(--gray)">'+(m.tamano||'')+' - Toca para abrir y descargar</div></div>'
@@ -703,12 +753,12 @@ async function subirFoto(archivo) {
   const fd = new FormData();
   fd.append('upload_preset','sistemail_panpaya');
   fd.append('folder','sistemail/reportes');
-  fd.append('use_filename','true');
-  fd.append('unique_filename','false');
+  if(archivo.name) fd.append('filename_override', archivo.name.replace(/[^a-zA-Z0-9._-]/g,'_'));
   fd.append('file', archivo);
   // Documentos como raw, imágenes/videos normal
   const esDoc = !archivo.type.startsWith('image') && !archivo.type.startsWith('video');
-  const endpoint = esDoc ? 'raw' : archivo.type.startsWith('video') ? 'video' : 'image';
+  const isPDFe = archivo?.name?.toLowerCase().endsWith('.pdf');
+  const endpoint = (esDoc && !isPDFe) ? 'raw' : archivo.type.startsWith('video') ? 'video' : 'image';
   const r = await fetch('https://api.cloudinary.com/v1_1/dasj362le/'+endpoint+'/upload',{method:'POST',body:fd});
   const d = await r.json();
   if (d.secure_url) return {url: d.secure_url, nombre: archivo.name, tipo: esDoc?'documento':'imagen', tamano: Math.round(archivo.size/1024)+'KB'};
@@ -737,11 +787,15 @@ window.enviarReporte = async function() {
       asunto, cuerpo, categoria, urgencia: urgenciaSeleccionada,
       remitenteUid: usuarioActual.uid, remitenteNombre: perfilActual.nombre,
       sucursal: perfilActual.sucursal, cargo: perfilActual.cargo||'',
+      cc: _ccUsuario.join(','),
       estado:'abierto', archivos: urls, documentos: documentos,
       leidoPorAdmin:false, leidoPorUsuario:true,
+      leidoPor: [usuarioActual.uid],
       respuestas:[], creadoEn:serverTimestamp()
     });
     mostrarToast(adjuntos.length>0?'Reporte enviado con '+adjuntos.length+' archivo(s)':'Reporte enviado');
+    _ccUsuario = [];
+    const chipsCont = document.getElementById('chips-cc-usuario'); if(chipsCont) chipsCont.innerHTML='';
     limpiarCompose();
     setTimeout(()=>sv('enviados'),1000);
   } catch(e) { mostrarToast('Error: '+e.message); }
@@ -971,13 +1025,13 @@ window.subirArchivoUser = async function(input, tipo) {
   document.getElementById('user-normal-input').style.display = 'none';
   try {
     const esDoc = tipo === 'documento';
-    const cloudTipo = esDoc ? 'raw' : tipo === 'video' ? 'video' : 'image';
+    const isPDF = archivo?.name?.toLowerCase().endsWith('.pdf');
+    const cloudTipo = (esDoc && !isPDF) ? 'raw' : tipo === 'video' ? 'video' : 'image';
     const fd = new FormData();
     fd.append('file', archivo);
     fd.append('upload_preset', PRESET_U);
     fd.append('folder', 'sistemail/chat');
-    fd.append('use_filename', 'true');
-    fd.append('unique_filename', 'false');
+      if(archivo.name) fd.append('filename_override', archivo.name.replace(/[^a-zA-Z0-9._-]/g,'_'));
     const r = await fetch('https://api.cloudinary.com/v1_1/'+CLOUD_NAME_U+'/'+cloudTipo+'/upload', {method:'POST',body:fd});
     const d = await r.json();
     if (!d.secure_url) throw new Error(d.error?.message || 'Error subiendo archivo');
@@ -1075,11 +1129,13 @@ window.enviarAudioUser = async function() {
 
 // ── HELPER CLOUDINARY ──
 async function subirCloudinaryUser(archivo, tipo) {
-  const cloudTipo = tipo === 'documento' ? 'raw' : tipo === 'video' ? 'video' : 'image';
+  const isPDFc = archivo?.name?.toLowerCase().endsWith('.pdf');
+    const cloudTipo = (tipo === 'documento' && !isPDFc) ? 'raw' : tipo === 'video' ? 'video' : 'image';
   const fd = new FormData();
   fd.append('file', archivo);
   fd.append('upload_preset', PRESET_U);
   fd.append('folder', 'sistemail/chat');
+      if(archivo.name) fd.append('filename_override', archivo.name.replace(/[^a-zA-Z0-9._-]/g,'_'));
   const r = await fetch('https://api.cloudinary.com/v1_1/' + CLOUD_NAME_U + '/' + cloudTipo + '/upload', { method: 'POST', body: fd });
   const d = await r.json();
   if (!d.secure_url) throw new Error(d.error?.message || 'Error subiendo archivo');

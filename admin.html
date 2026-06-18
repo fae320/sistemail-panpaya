@@ -359,11 +359,17 @@ document.addEventListener('click', function(e){
 
           <!-- Correo específico opcional -->
           <div class="cf">
-            <label>Destinatario específico <span style="font-size:11px;color:var(--gray);font-weight:400">(opcional)</span></label>
-            <select id="adm-compose-correo" style="font-size:13px">
-              <option value="">— Toda la sucursal / oficina —</option>
-            </select>
-            <div style="font-size:11px;color:var(--gray);margin-top:4px">Selecciona una sucursal primero para ver sus usuarios registrados.</div>
+            <label>Destinatarios específicos <span style="font-size:11px;color:var(--gray);font-weight:400">(opcional — puedes agregar varios)</span></label>
+            <div id="chips-destinatarios" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <select id="adm-compose-correo" style="flex:1;min-width:180px;font-size:13px" onchange="window.agregarDestinatarioChip(this.value);this.value=''">
+                <option value="">+ Seleccionar usuario registrado...</option>
+              </select>
+              <input type="email" id="adm-compose-correo-ext" placeholder="correo@externo.com" style="flex:1;min-width:160px;font-size:13px">
+              <button type="button" class="btn bo" onclick="window.agregarDestinatarioExterno()" style="font-size:12px;padding:6px 12px">+ Agregar</button>
+            </div>
+            <input type="hidden" id="adm-destinatarios-hidden">
+            <div style="font-size:11px;color:var(--gray);margin-top:4px">Selecciona una sucursal primero para ver sus usuarios. Puedes agregar varios.</div>
           </div>
 
           <div class="cf"><label>Asunto</label>
@@ -469,7 +475,10 @@ document.addEventListener('click', function(e){
               <button style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--danger)" onclick="cancelarGrabacion()">✕</button>
               <button class="btn bg-d" style="font-size:11px;padding:3px 10px" onclick="enviarAudio()">Enviar ▶</button>
             </div>
-            <div id="upload-bar" style="display:none;padding:.4rem;font-size:12px;color:var(--info);text-align:center">⏳ Subiendo...</div>
+            <div id="upload-bar" style="display:none;padding:.6rem 1rem;background:linear-gradient(90deg,var(--info-bg),#fff);border-radius:12px;margin:.3rem;font-size:12px;color:var(--info);display:none;align-items:center;gap:8px">
+              <div style="width:16px;height:16px;border:2px solid var(--info);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div>
+              <span>Subiendo archivo...</span>
+            </div>
             <div id="normal-input">
               <div class="ci-bar">
                 <input type="text" id="chat-input" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter')enviarMensajeChat()">
@@ -514,16 +523,16 @@ document.addEventListener('click', function(e){
             <div style="font-size:11px;color:var(--gray);font-weight:600;text-transform:uppercase;letter-spacing:.04em">Crear reunión en:</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button type="button" class="btn bo" onclick="abrirPlataforma('meet')" style="display:flex;align-items:center;gap:6px;font-size:12px">
-                <img src="https://img.icons8.com/color/24/google-meet.png" style="width:18px;height:18px"> Google Meet
+                🎥 Google Meet
               </button>
               <button type="button" class="btn bo" onclick="abrirPlataforma('teams')" style="display:flex;align-items:center;gap:6px;font-size:12px">
-                <img src="https://img.icons8.com/color/24/microsoft-teams.png" style="width:18px;height:18px"> Microsoft Teams
+                💼 Microsoft Teams
               </button>
               <button type="button" class="btn bo" onclick="abrirPlataforma('zoom')" style="display:flex;align-items:center;gap:6px;font-size:12px">
-                <img src="https://img.icons8.com/color/24/zoom.png" style="width:18px;height:18px"> Zoom
+                📹 Zoom
               </button>
               <button type="button" class="btn bo" onclick="abrirPlataforma('webex')" style="display:flex;align-items:center;gap:6px;font-size:12px">
-                <img src="https://img.icons8.com/color/24/cisco-webex.png" style="width:18px;height:18px"> Webex
+                🔵 Webex
               </button>
             </div>
             <div style="font-size:11px;color:var(--gray)">💡 Abre la plataforma, crea la reunión, copia el link y pégalo arriba.</div>
@@ -626,6 +635,16 @@ document.addEventListener('click', function(e){
         <div class="sc amber"><div class="sc-label">Resueltos</div><div class="sc-num" id="met-res">0</div></div>
         <div class="sc red"><div class="sc-label">Pendientes</div><div class="sc-num" id="met-pend">0</div></div>
       </div>
+      <!-- Gráfica por mes -->
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ph"><span class="ph-title">📅 Reportes por mes</span><span style="font-size:11px;color:var(--gray)">Últimos 6 meses</span></div>
+        <div id="chart-por-mes" style="padding:1rem 1.2rem;overflow-x:auto"></div>
+      </div>
+      <!-- Gráfica urgencia por mes -->
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ph"><span class="ph-title">🚦 Críticos / Importantes / Normales por mes</span></div>
+        <div id="chart-urgencia-mes" style="padding:1rem 1.2rem;overflow-x:auto"></div>
+      </div>
       <div class="panel"><div class="ph"><span class="ph-title">Reportes por sucursal</span></div><div class="chart-bars" id="chart-met-sucursales" style="height:140px"></div></div>
     </div>
 
@@ -649,7 +668,7 @@ document.addEventListener('click', function(e){
 <!-- Scripts al final -->
 <script src="js/ia-config.js"></script>
 <script src="js/notificaciones.js"></script>
-<script type="module" src="js/admin-app.js?v=1781704754"></script>
+<script type="module" src="js/admin-app.js?v=1781796930"></script>
 <script src="js/admin-mobile.js" defer></script>
 </body>
 </html>

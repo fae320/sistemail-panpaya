@@ -228,16 +228,20 @@ input,select,textarea{font-family:'Outfit',sans-serif}
 .chat-header-name{font-family:'Syne',sans-serif;font-weight:600;font-size:.95rem;color:var(--charcoal)}
 .chat-header-status{font-size:11px;color:var(--success)}
 .chat-messages{flex:1;overflow-y:auto;padding:1rem 1.2rem;display:flex;flex-direction:column;gap:12px}
-.cm{max-width:70%}
+.cm{max-width:72%}
 .cm-out{align-self:flex-end}
 .cm-in{align-self:flex-start}
-.cm-sender{font-size:11px;font-weight:500;color:var(--gray);margin-bottom:3px}
-.cm-bubble{padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.55}
+.cm-sender{font-size:11px;font-weight:600;color:var(--gray);margin-bottom:3px;padding-left:4px}
+.cm-bubble{padding:9px 13px;border-radius:18px;font-size:13px;line-height:1.6;box-shadow:0 1px 3px rgba(0,0,0,.08);position:relative;word-break:break-word}
 .cm-in .cm-bubble{background:#F0EBE4;border-bottom-left-radius:4px;color:var(--charcoal)}
 .cm-out .cm-bubble{background:var(--bread);color:#fff;border-bottom-right-radius:4px}
-.cm-time{font-size:10px;color:var(--gray-light);margin-top:3px;text-align:right}
-.cm-in .cm-time{text-align:left}
+.cm-time{font-size:10px;color:rgba(0,0,0,.35);margin-top:4px;text-align:right;padding-right:2px}
+.cm-in .cm-time{text-align:left;color:var(--gray);padding-left:2px}
+.cm-out .cm-time{color:rgba(255,255,255,.7)}
 .cm-audio{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:14px;background:#1C3A6A;color:#fff;min-width:200px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.cm{animation:fadeInUp .2s ease}
 .cm-audio .play-btn{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.2);border:none;cursor:pointer;font-size:12px;color:#fff;flex-shrink:0}
 .waveform{flex:1;height:24px;background:rgba(255,255,255,.15);border-radius:4px}
 .audio-dur{font-size:10px;opacity:.7;white-space:nowrap}

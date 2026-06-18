@@ -1,3 +1,29 @@
+window.abrirDocumento = function(url, nombreArchivo) {
+  const nombre = nombreArchivo || url.split('/').pop().split('?')[0];
+  const ext = nombre.split('.').pop().toLowerCase();
+  const esPDF = ext === 'pdf';
+  const esOffice = ['doc','docx','xls','xlsx','ppt','pptx'].includes(ext);
+
+  if (esPDF) {
+    // PDF no se puede ver en Cloudinary raw — descargar directamente
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre; a.target = '_blank';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  } else if (esOffice) {
+    // Word/Excel/PPT — abrir en Office Online (una sola pestaña)
+    window.open('https://view.officeapps.live.com/op/view.aspx?src=' + encodeURIComponent(url), '_blank');
+  } else {
+    window.open(url, '_blank');
+  }
+};
+
+window.descargarDocumento = function(url, nombreArchivo) {
+  const nombre = nombreArchivo || 'documento';
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre; a.target = '_blank';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+};
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -25,18 +51,15 @@ let chatUnsubscribe=null;
 let cerrando=false; // bandera cerrar sesión
 
 // -- AUTH CON PERSISTENCIA --
-let _adminIniciado = false;
 setPersistence(auth, browserLocalPersistence).then(() => {
   onAuthStateChanged(auth, async(user) => {
     if (cerrando) return;
     if (!user) { window.location.href='index.html'; return; }
-    if (_adminIniciado) return; // evitar doble ejecución
     try {
       const snap = await getDoc(doc(db,'usuarios',user.uid));
       if (!snap.exists()) { window.location.href='index.html'; return; }
       const perfil = snap.data();
       if (perfil.rol !== 'admin') { window.location.href='usuario.html'; return; }
-      _adminIniciado = true;
       adminActual=user; perfilAdmin=perfil;
       const esTecnico = perfil.subrol === 'tecnico';
       const ini=perfilAdmin.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -463,17 +486,18 @@ window.guardarReunion=async function(){
   if(persona==='externo')persona=document.getElementById('re-externo').value.trim();
   const fecha=document.getElementById('re-fecha').value;
   const hora=document.getElementById('re-hora').value;
-  const link=document.getElementById('re-link').value.trim();
-  const notas=document.getElementById('re-notas').value.trim();
+  const link = document.getElementById('re-link').value.trim();
+  const linkValido = link && (link.startsWith('http://') || link.startsWith('https://')) ? link : '';
+  const notas = document.getElementById('re-notas').value.trim();
   const correoInv=document.getElementById('re-correo-inv').value.trim();
   if(!titulo||!persona||!fecha){mostrarToast('Completa titulo, persona y fecha');return;}
 
-  await addDoc(collection(db,'reuniones'),{titulo,persona,fecha,hora,link,notas,correoInv,creadoEn:serverTimestamp()});
+  await addDoc(collection(db,'reuniones'),{titulo,persona,fecha,hora,link:linkValido,notas,correoInv,creadoEn:serverTimestamp()});
 
   const sucDestino = SUCURSALES.includes(persona)||persona==='Oficina Central' ? persona : null;
   const datosReunion = {
     estado:'aprobada', reunionTitulo:titulo, reunionFecha:fecha, reunionHora:hora,
-    reunionLink:link||'', reunionParticipantes:correoInv||'', reunionNotas:notas||''
+    reunionLink:linkValido||'', reunionParticipantes:correoInv||'', reunionNotas:notas||''
   };
 
   // 1. Si viene de solicitud específica — actualizarla
@@ -663,24 +687,6 @@ function cargarTodosCorreos(){
   });
 }
 
-// ── HELPER: link de documento ──
-function construirLinkDocAdmin(url, nombre_archivo) {
-  const ext = (nombre_archivo||'').split('.').pop().toLowerCase();
-  const esPDF = ext === 'pdf';
-  const nombre = nombre_archivo || 'documento';
-  if (esPDF) {
-    const googleUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(url) + '&embedded=false';
-    return '<a href="' + googleUrl + '" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:#FCE8E8;color:#C8201A;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600">'
-      + '<span style="background:#C8201A;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">PDF</span>👁 ' + nombre + '</a>'
-      + ' <a href="' + url + '" download="' + nombre + '" style="display:inline-flex;align-items:center;padding:5px 8px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;font-weight:600">⬇</a>';
-  } else {
-    const extUp = ext.toUpperCase()||'DOC';
-    return '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:var(--info-bg);color:var(--info);border-radius:8px;font-size:12px;text-decoration:none;font-weight:600">'
-      + '<span style="background:var(--info);color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">' + extUp + '</span>👁 ' + nombre + '</a>'
-      + ' <a href="' + url + '" download="' + nombre + '" style="display:inline-flex;align-items:center;padding:5px 8px;background:#EAF3DE;color:#2E7D32;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600">⬇</a>';
-  }
-}
-
 function renderCorreos(correos){
   const lista=document.getElementById('lista-correos-admin');
   if(!correos.length){lista.innerHTML='<li style="padding:2rem;text-align:center;color:var(--gray);font-size:13px">No hay correos.</li>';return;}
@@ -705,7 +711,10 @@ function crearItemAdmin(c){
 let _correoActualRef = null;
 
 async function abrirCorreo(c){
-  if(!c.leidoPorAdmin) await updateDoc(doc(db,'correos',c.id),{leidoPorAdmin:true});
+  if(!c.leidoPorAdmin) await updateDoc(doc(db,'correos',c.id),{
+    leidoPorAdmin:true,
+    leidoPor: [...(c.leidoPor||[]), adminActual.uid].filter((v,i,a)=>a.indexOf(v)===i)
+  });
 
   const panel = document.getElementById('mail-detail');
   if(!panel) return;
@@ -726,6 +735,13 @@ function renderHiloCorreo(c, panel){
   const estadoClass = c.estado==='resuelto'?'sb-res':'sb-open';
   const fecha = c.creadoEn ? new Date(c.creadoEn.seconds*1000).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}) : '';
 
+  // Estado de lectura
+  const vistoPorUsuario = c.leidoPorUsuario === true;
+  const vistoHtml = '<div style="font-size:11px;margin-top:6px;display:flex;align-items:center;gap:6px">'
+    +'<span style="color:'+(vistoPorUsuario?'var(--success)':'var(--gray)')+'">'+( vistoPorUsuario?'✓✓ Visto por el usuario':'✓ Enviado — no leído aún')+'</span>'
+    +(c.cc?'<span style="color:var(--gray);font-size:10px">· CC: '+c.cc+'</span>':'')
+    +'</div>';
+
   // ── HILO DE MENSAJES ──
   // 1. Mensaje original
   let hiloHtml = '<div style="margin-bottom:1rem">';
@@ -743,7 +759,7 @@ function renderHiloCorreo(c, panel){
     adjuntosHtml += '<div style="margin-top:.6rem">'
       + c.documentos.map(d=>{
           const ext=(d.nombre||'').split('.').pop().toUpperCase()||'DOC';
-          return '<div style="display:inline-flex;align-items:center;gap:8px;background:var(--info-bg);border-radius:8px;padding:6px 12px;margin:3px;cursor:pointer" onclick="window.open(\''+d.url+'\')">'
+          return '<div style="display:inline-flex;align-items:center;gap:8px;background:var(--info-bg);border-radius:8px;padding:6px 12px;margin:3px;cursor:pointer" onclick="abrirDocumento(\''+d.url+'\',\''+( d.nombre||'documento')+'\')">'
             +'<span style="background:var(--info);color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">'+ext+'</span>'
             +'<span style="font-size:12px;color:var(--info);font-weight:600">'+(d.nombre||'Documento')+'</span>'
             +'<span style="font-size:11px;color:var(--gray)">'+(d.tamano||'')+'</span>'
@@ -792,11 +808,14 @@ function renderHiloCorreo(c, panel){
           contenido += (contenido?'<br>':'')+'<img src="'+r.url+'" style="max-width:220px;border-radius:8px;margin-top:6px;display:block;cursor:pointer" onclick="window.open(\''+r.url+'\',\'_blank\')">';
         } else {
           const extUp=ext.toUpperCase()||'DOC';
+          const isPDF=ext==='pdf';
+          const isOffice=['doc','docx','xls','xlsx','ppt','pptx'].includes(ext);
+          const viewUrl=isOffice?'https://view.officeapps.live.com/op/view.aspx?src='+encodeURIComponent(r.url):r.url;
           contenido += (contenido?'<br>':'')
-            +'<a href="'+r.url+'" target="_blank" download="'+(r.nombre_archivo||'documento')+'" '
+            +'<a href="'+viewUrl+'" target="_blank" '
             +'style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:var(--info-bg);color:var(--info);border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;margin-top:4px">'
             +'<span style="background:var(--info);color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">'+extUp+'</span>'
-            +(r.nombre_archivo||'Descargar')+'</a>';
+            +(r.nombre_archivo||'Abrir')+'</a>';
         }
       }
 
@@ -830,7 +849,8 @@ function renderHiloCorreo(c, panel){
     +'<span style="font-size:11px;color:var(--gray);margin-left:auto">'+fecha+'</span>'
     +'</div>'
     +'<div style="font-size:16px;font-weight:700;color:var(--charcoal);margin-bottom:.5rem;line-height:1.3">'+(c.asunto||'Sin asunto')+'</div>'
-    +'<div style="display:flex;gap:5px;flex-wrap:wrap">'
+    + vistoHtml
+    +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">'
     +'<button class="btn bp" onclick="window._responderFocus()" style="font-size:12px;padding:5px 12px">↩ Responder</button>'
     +'<button class="btn bg-s" onclick="window._resolver()" style="font-size:12px;padding:5px 12px">✓ Resuelto</button>'
     +'<button class="btn bo" onclick="window._reenviar()" style="font-size:12px;padding:5px 12px">↪ Reenviar</button>'
@@ -855,28 +875,69 @@ function renderHiloCorreo(c, panel){
     +'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();window._responder();}" '
     +'style="flex:1;border:1.5px solid rgba(0,0,0,.12);border-radius:10px;padding:.6rem .8rem;font-family:Outfit,sans-serif;font-size:13px;resize:none;outline:none;line-height:1.5;box-sizing:border-box;transition:border-color .2s" '
     +'onfocus="this.style.borderColor=\'var(--bread)\'" onblur="this.style.borderColor=\'rgba(0,0,0,.12)\'"></textarea>'
+    +'<label style="background:var(--info);border:none;border-radius:10px;width:42px;height:42px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;color:#fff" title="Adjuntar archivo">📎<input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style="display:none" onchange="window._adjuntarRespuesta(this)"></label>'
     +'<button onclick="window._responder()" style="background:var(--bread);border:none;border-radius:10px;width:42px;height:42px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;color:#fff">&#9658;</button>'
     +'<button onclick="window._resolverConResp()" style="background:var(--success);border:none;border-radius:10px;padding:0 10px;height:42px;cursor:pointer;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">✓ Resolver</button>'
     +'</div>'
+    +'<div id="adm-reply-preview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>'
     +'</div>';
+
+  let _archivosReplyAdmin = [];
+
+  window._adjuntarRespuesta = function(input) {
+    const nuevos = Array.from(input.files);
+    nuevos.forEach(f => { if(!_archivosReplyAdmin.find(x=>x.name===f.name&&x.size===f.size)) _archivosReplyAdmin.push(f); });
+    input.value = '';
+    const prev = document.getElementById('adm-reply-preview'); if(!prev) return;
+    prev.innerHTML = '';
+    _archivosReplyAdmin.forEach((f,i) => {
+      const chip = document.createElement('div');
+      chip.style.cssText = 'display:flex;align-items:center;gap:5px;background:#F0F0F0;border-radius:8px;padding:3px 8px;font-size:11px';
+      chip.innerHTML = '📎 '+f.name+' <span onclick="window._quitarArchivoReply('+i+')" style="cursor:pointer;color:#E53935;font-weight:700;font-size:13px">×</span>';
+      prev.appendChild(chip);
+    });
+  };
+
+  window._quitarArchivoReply = function(idx) {
+    _archivosReplyAdmin.splice(idx,1);
+    window._adjuntarRespuesta({files:[]});
+  };
 
   // Funciones de acción
   window._responder = async()=>{
     const t=document.getElementById('reply-txt')?.value.trim();
-    if(!t){mostrarToast('⚠ Escribe una respuesta');return;}
-    const btn=document.querySelector('#mail-detail .btn.bp');
-    if(btn){btn.disabled=true;btn.textContent='Enviando...';}
+    if(!t && _archivosReplyAdmin.length===0){mostrarToast('⚠ Escribe una respuesta o adjunta un archivo');return;}
     const ref=doc(db,'correos',c.id);
     const sn=await getDoc(ref);
     const resp=sn.data().respuestas||[];
-    resp.push({texto:t,nombre:perfilAdmin.nombre,fecha:new Date().toLocaleString('es-CO'),archivos:[]});
+
+    // Subir archivos adjuntos
+    for(const f of _archivosReplyAdmin){
+      const esPDF2=f.type==='application/pdf'||f.name?.toLowerCase().endsWith('.pdf');
+      const esDoc=!f.type.startsWith('image')&&!f.type.startsWith('video')&&!esPDF2;
+      const fd=new FormData();
+      fd.append('file',f);
+      fd.append('upload_preset',UPLOAD_PRESET);
+      fd.append('folder','sistemail/correos');
+      if(f.name) fd.append('filename_override', f.name.replace(/[^a-zA-Z0-9._-]/g,'_'));
+      try{
+        const r=await fetch('https://api.cloudinary.com/v1_1/'+CLOUD_NAME+'/'+(esDoc?'raw':'image')+'/upload',{method:'POST',body:fd});
+        const d=await r.json();
+        if(d.secure_url){
+          resp.push({texto:'📎 '+f.name,url:d.secure_url,nombre_archivo:f.name,nombre:perfilAdmin.nombre,esAdmin:true,fecha:new Date().toLocaleString('es-CO'),archivos:[]});
+        }
+      }catch(e){}
+    }
+
+    if(t) resp.push({texto:t,nombre:perfilAdmin.nombre,esAdmin:true,fecha:new Date().toLocaleString('es-CO'),archivos:[]});
     await updateDoc(ref,{respuestas:resp,leidoPorUsuario:false,estado:'en_proceso'});
     document.getElementById('reply-txt').value='';
+    _archivosReplyAdmin=[];
+    const prev=document.getElementById('adm-reply-preview');if(prev)prev.innerHTML='';
     // Scroll al final
     const hilo = document.getElementById('hilo-scroll');
     if(hilo) setTimeout(()=>{ hilo.scrollTop=hilo.scrollHeight; },200);
     mostrarToast('✅ Respuesta enviada');
-    if(btn){btn.disabled=false;btn.textContent='📤 Enviar respuesta';}
   };
   window._responderFocus = function(){ const rt=document.getElementById('reply-txt'); if(rt) rt.focus(); };
   window._resolver=async()=>{await updateDoc(doc(db,'correos',c.id),{estado:'resuelto'});mostrarToast('✅ Resuelto');};
@@ -902,6 +963,84 @@ function actualizarEstadisticas(correos){
   const tasa=correos.length>0?Math.round((resueltos/correos.length)*100):0;
   ['met-tasa','met-total','met-res','met-pend'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.textContent=[tasa+'%',correos.length,resueltos,proceso][i];});
   renderActividad(correos);renderChart(correos);renderCategorias(correos);
+  renderChartMes(correos);renderChartUrgenciaMes(correos);
+}
+
+function renderChartMes(correos){
+  const cont=document.getElementById('chart-por-mes');if(!cont)return;
+  const meses={};
+  const ahora=new Date();
+  for(let i=5;i>=0;i--){
+    const d=new Date(ahora.getFullYear(),ahora.getMonth()-i,1);
+    const key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+    const label=d.toLocaleDateString('es-CO',{month:'short',year:'2-digit'});
+    meses[key]={label,total:0};
+  }
+  correos.forEach(c=>{
+    if(!c.creadoEn?.seconds)return;
+    const d=new Date(c.creadoEn.seconds*1000);
+    const key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+    if(meses[key])meses[key].total++;
+  });
+  const vals=Object.values(meses);
+  const max=Math.max(...vals.map(v=>v.total),1);
+  cont.innerHTML='<div style="display:flex;align-items:flex-end;gap:12px;height:120px;padding-bottom:24px;position:relative">'
+    +vals.map(v=>{
+      const h=Math.max(Math.round((v.total/max)*90),v.total>0?4:0);
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
+        +'<span style="font-size:11px;font-weight:700;color:var(--charcoal)">'+v.total+'</span>'
+        +'<div style="width:100%;background:var(--bread);border-radius:6px 6px 0 0;height:'+h+'px;transition:height .3s"></div>'
+        +'<span style="font-size:10px;color:var(--gray);white-space:nowrap">'+v.label+'</span>'
+        +'</div>';
+    }).join('')+'</div>';
+}
+
+function renderChartUrgenciaMes(correos){
+  const cont=document.getElementById('chart-urgencia-mes');if(!cont)return;
+  const meses={};
+  const ahora=new Date();
+  for(let i=5;i>=0;i--){
+    const d=new Date(ahora.getFullYear(),ahora.getMonth()-i,1);
+    const key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+    const label=d.toLocaleDateString('es-CO',{month:'short',year:'2-digit'});
+    meses[key]={label,critico:0,importante:0,normal:0};
+  }
+  correos.forEach(c=>{
+    if(!c.creadoEn?.seconds)return;
+    const d=new Date(c.creadoEn.seconds*1000);
+    const key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+    if(!meses[key])return;
+    if(c.urgencia==='critico')meses[key].critico++;
+    else if(c.urgencia==='importante'||c.urgencia==='media')meses[key].importante++;
+    else meses[key].normal++;
+  });
+  const vals=Object.values(meses);
+  const max=Math.max(...vals.map(v=>v.critico+v.importante+v.normal),1);
+  cont.innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'
+    +vals.map(v=>{
+      const total=v.critico+v.importante+v.normal;
+      const w=(total/max)*100;
+      const wC=total>0?Math.round(v.critico/total*100):0;
+      const wI=total>0?Math.round(v.importante/total*100):0;
+      const wN=total>0?100-wC-wI:0;
+      return '<div style="display:flex;align-items:center;gap:8px">'
+        +'<span style="font-size:11px;color:var(--gray);width:40px;text-align:right;white-space:nowrap">'+v.label+'</span>'
+        +'<div style="flex:1;height:18px;border-radius:100px;background:#F0F0F0;overflow:hidden">'
+        +(total>0
+          ?'<div style="display:flex;height:100%;width:'+w+'%">'
+            +(wC>0?'<div style="width:'+wC+'%;background:#E53935" title="Crítico: '+v.critico+'"></div>':'')
+            +(wI>0?'<div style="width:'+wI+'%;background:#D4860C" title="Importante: '+v.importante+'"></div>':'')
+            +(wN>0?'<div style="width:'+wN+'%;background:#2E7D32" title="Normal: '+v.normal+'"></div>':'')
+            +'</div>'
+          :'')
+        +'</div>'
+        +'<span style="font-size:11px;font-weight:700;color:var(--charcoal);width:24px">'+total+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div>'
+    +'<div style="display:flex;gap:12px;margin-top:8px;font-size:11px">'
+    +'<span>🔴 Crítico</span><span>🟡 Importante</span><span>🟢 Normal</span>'
+    +'</div>';
 }
 function renderCriticos(correos){
   const criticos=correos.filter(c=>c.urgencia==='critico'&&c.estado!=='resuelto');
@@ -1202,7 +1341,7 @@ function seleccionarChat(chatId, el, ini, esPersona, nombrePersona){
       if(m.tipo==='texto'){
         div.innerHTML = (esA?'':'<div class="cm-sender">'+(m.nombre||'')+(m.cargo?' - '+m.cargo:'')+'</div>')
           +'<div class="cm-bubble">'+m.texto+'</div>'
-          +'<div class="cm-time">'+hora+(esA?' vv':'')+'</div>';
+          +'<div class="cm-time">'+hora+(esA?(m.leidoPorUsuario?' <span style="color:#4FC3F7">✓✓</span>':' <span style="color:rgba(255,255,255,.5)">✓</span>'):'')+'</div>';
       } else if(m.tipo==='audio'){
         const aid='a'+Date.now()+Math.random().toString(36).slice(2);
         div.innerHTML='<div class="cm-sender" style="'+(esA?'text-align:right':'')+'">Nota de voz</div><div class="cm-audio"><button class="play-btn" id="'+aid+'" onclick="window.toggleAudioAdmin(this.dataset.url,this.id)" data-url="'+m.url+'" >&#9654;</button><div class="waveform"></div><span class="audio-dur">'+(m.duracion||'0:00')+'</span></div><div class="cm-time">'+hora+'</div>';
@@ -1214,7 +1353,7 @@ function seleccionarChat(chatId, el, ini, esPersona, nombrePersona){
         const nom=m.nombre_archivo||'Documento';
         const ext=(nom.split('.').pop()||'').toLowerCase();
         const ico=ext==='pdf'?'PDF':ext.startsWith('doc')?'DOC':ext.startsWith('xls')?'XLS':'FILE';
-        div.innerHTML='<div class="cm-sender" style="'+(esA?'text-align:right':'')+'">'+(!esA?(m.nombre||'')+' ':'')+'Documento</div><div style="background:rgba(0,0,0,.06);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;max-width:260px;cursor:pointer" onclick="window.open(this.dataset.url)" data-url="'+m.url+'"><span style="background:var(--info);color:#fff;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:700">'+ico+'</span><div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nom+'</div><div style="font-size:10px;color:var(--gray)">'+(m.tamano||'')+' - Abrir</div></div></div><div class="cm-time">'+hora+'</div>';
+        div.innerHTML='<div class="cm-sender" style="'+(esA?'text-align:right':'')+'">'+(!esA?(m.nombre||'')+' ':'')+'Documento</div><div style="background:rgba(0,0,0,.06);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;max-width:260px;cursor:pointer" onclick="abrirDocumento(this.dataset.url,this.dataset.nombre)" data-url="'+m.url+'" data-nombre="'+(m.nombre_archivo||m.nombre||'documento')+'"><span style="background:var(--info);color:#fff;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:700">'+ico+'</span><div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nom+'</div><div style="font-size:10px;color:var(--gray)">'+(m.tamano||'')+' - Abrir</div></div></div><div class="cm-time">'+hora+'</div>';
       }
       cont.appendChild(div);
     });
@@ -1551,26 +1690,58 @@ window.quitarArchivoAdmin = function(idx) {
 window.cargarDestinatarios = async function(sucursal) {
   const sel = document.getElementById('adm-compose-correo');
   if (!sel) return;
-  sel.innerHTML = '<option value="">— Toda la sucursal / oficina —</option>';
+  sel.innerHTML = '<option value="">+ Seleccionar usuario registrado...</option>';
   if (!sucursal || sucursal === 'TODAS') return;
   try {
-    // Para Oficina Central buscar por esOficina o por sucursal
     const q = sucursal === 'Oficina Central'
       ? query(collection(db,'usuarios'), where('esOficina','==',true), where('rol','==','usuario'), where('estado','==','aprobado'))
       : query(collection(db,'usuarios'), where('sucursal','==',sucursal), where('rol','==','usuario'), where('estado','==','aprobado'));
     const snap = await getDocs(q);
-    if (snap.empty) {
-      sel.innerHTML += '<option disabled>Sin usuarios registrados</option>';
-      return;
-    }
+    if (snap.empty) { sel.innerHTML += '<option disabled>Sin usuarios en esta sucursal</option>'; return; }
     snap.forEach(d => {
       const u = d.data();
       const opt = document.createElement('option');
       opt.value = u.email || '';
-      opt.textContent = (u.nombre||'Sin nombre') + (u.cargo?' · '+u.cargo:'') + (u.email?' ('+u.email+')':'');
+      opt.textContent = (u.nombre||'') + (u.cargo?' · '+u.cargo:'') + (u.email?' ('+u.email+')':'');
       sel.appendChild(opt);
     });
-  } catch(e) { console.error('cargarDestinatarios:', e.message); }
+  } catch(e) {}
+};
+
+let _destinatariosChips = [];
+
+window.agregarDestinatarioChip = function(correo) {
+  if (!correo || _destinatariosChips.includes(correo)) return;
+  _destinatariosChips.push(correo);
+  renderDestinatariosChips();
+};
+
+window.agregarDestinatarioExterno = function() {
+  const inp = document.getElementById('adm-compose-correo-ext');
+  const correo = inp?.value.trim();
+  if (!correo || !correo.includes('@')) { mostrarToast('⚠ Correo inválido'); return; }
+  if (_destinatariosChips.includes(correo)) { mostrarToast('Ya está en la lista'); return; }
+  _destinatariosChips.push(correo);
+  if(inp) inp.value = '';
+  renderDestinatariosChips();
+};
+
+function renderDestinatariosChips() {
+  const cont = document.getElementById('chips-destinatarios'); if(!cont) return;
+  cont.innerHTML = '';
+  _destinatariosChips.forEach((c,i) => {
+    const chip = document.createElement('div');
+    chip.style.cssText = 'display:flex;align-items:center;gap:5px;background:var(--info-bg);color:var(--info);border-radius:100px;padding:3px 10px;font-size:12px;font-weight:600';
+    chip.innerHTML = '✉ '+c+' <span onclick="window.quitarDestinatario('+i+')" style="cursor:pointer;color:var(--danger);font-weight:700;font-size:14px;line-height:1">×</span>';
+    cont.appendChild(chip);
+  });
+  const hidden = document.getElementById('adm-destinatarios-hidden');
+  if(hidden) hidden.value = _destinatariosChips.join(',');
+}
+
+window.quitarDestinatario = function(idx) {
+  _destinatariosChips.splice(idx,1);
+  renderDestinatariosChips();
 };
 
 window.limpiarComposeAdmin = function() {
@@ -1580,6 +1751,9 @@ window.limpiarComposeAdmin = function() {
   const p = document.getElementById('adm-compose-para'); if(p) p.value='';
   const cat = document.getElementById('adm-compose-categoria'); if(cat) cat.value='general';
   const correo = document.getElementById('adm-compose-correo'); if(correo) correo.value='';
+  const correoExt = document.getElementById('adm-compose-correo-ext'); if(correoExt) correoExt.value='';
+  _destinatariosChips = [];
+  renderDestinatariosChips();
   archivosAdmin = [];
   const prev = document.getElementById('adm-archivos-preview'); if(prev) prev.innerHTML='';
   selUrgenciaAdmin('normal');
@@ -1590,7 +1764,7 @@ window.enviarCorreoAdmin = async function() {
   const asunto = document.getElementById('adm-compose-asunto')?.value.trim();
   const cuerpo = document.getElementById('adm-compose-cuerpo')?.innerText.trim();
   const categoria = document.getElementById('adm-compose-categoria')?.value || 'general';
-  const correoDestinatario = document.getElementById('adm-compose-correo')?.value.trim() || '';
+  const correoDestinatario = _destinatariosChips.join(',') || '';
 
   if(!para){ mostrarToast('⚠ Selecciona el destinatario'); return; }
   if(!asunto){ mostrarToast('⚠ Escribe un asunto'); return; }
@@ -1611,6 +1785,7 @@ window.enviarCorreoAdmin = async function() {
           fd.append('file', f);
           fd.append('upload_preset', UPLOAD_PRESET);
           fd.append('folder', 'sistemail/correos');
+          if(f.name) fd.append('filename_override', f.name.replace(/[^a-zA-Z0-9._-]/g,'_'));
           const esDoc = !f.type.startsWith('image') && !f.type.startsWith('video');
           const endpoint = esDoc ? 'raw' : f.type.startsWith('video') ? 'video' : 'image';
           const r = await fetch('https://api.cloudinary.com/v1_1/'+CLOUD_NAME+'/'+endpoint+'/upload',{method:'POST',body:fd});

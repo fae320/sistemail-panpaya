@@ -1,3 +1,109 @@
+// ── ASISTENTE IA (Gemini) — Usuario ──
+let _iaHistorialUser = [];
+
+window.abrirIA = function(){
+  const modal = document.getElementById('ia-modal');
+  if(modal) modal.style.display = 'flex';
+};
+
+window.cerrarIA = function(){
+  const modal = document.getElementById('ia-modal');
+  if(modal) modal.style.display = 'none';
+};
+
+window.enviarMensajeIA = async function(textoForzado){
+  const input = document.getElementById('ia-input');
+  const texto = textoForzado || input?.value.trim();
+  if(!texto) return;
+  if(input) input.value = '';
+
+  const cont = document.getElementById('ia-mensajes');
+  const bienvenida = document.getElementById('ia-bienvenida');
+  if(bienvenida) bienvenida.remove();
+  if(!cont) return;
+
+  const divUser = document.createElement('div');
+  divUser.className = 'ia-burbuja-user';
+  divUser.textContent = texto;
+  cont.appendChild(divUser);
+
+  const divLoad = document.createElement('div');
+  divLoad.className = 'ia-burbuja-load';
+  divLoad.textContent = 'Pensando...';
+  cont.appendChild(divLoad);
+  cont.scrollTop = cont.scrollHeight;
+
+  const apiKey = window.IA_API_KEY;
+  if(!apiKey || apiKey === 'TU_API_KEY_DE_GEMINI_AQUI'){
+    divLoad.remove();
+    const divErr = document.createElement('div');
+    divErr.className = 'ia-burbuja-ia';
+    divErr.innerHTML = '⚠️ El Asistente IA no está configurado aún. Contacta a Sistemas.';
+    cont.appendChild(divErr);
+    cont.scrollTop = cont.scrollHeight;
+    return;
+  }
+
+  try {
+    const systemPrompt = "Eres el asistente de soporte técnico de SisteMail para el personal de sucursales de Pan Pa' Ya!, una empresa de panaderías en Bogotá. Ayudas con: problemas de sistema POS, facturación, inventario, impresoras, internet, contraseñas, y mejorar la redacción de reportes. Responde en español de forma clara, completa y profesional. Puedes responder cualquier tipo de pregunta, no solo temas técnicos. Da respuestas completas, sin cortarlas a la mitad.";
+
+    _iaHistorialUser.push({role:'user', parts:[{text:texto}]});
+
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+(window.IA_MODEL||'gemini-flash-latest')+':generateContent?key='+apiKey, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents: _iaHistorialUser,
+        systemInstruction: { parts: [{text: systemPrompt}] },
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.4 }
+      })
+    });
+    const data = await res.json();
+    divLoad.remove();
+
+    if(data.error){
+      const divErr = document.createElement('div');
+      divErr.className = 'ia-burbuja-ia';
+      divErr.textContent = '⚠️ Error: ' + (data.error.message || 'No se pudo conectar.');
+      cont.appendChild(divErr);
+      cont.scrollTop = cont.scrollHeight;
+      return;
+    }
+
+    const respuesta = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No pude generar una respuesta.';
+    _iaHistorialUser.push({role:'model', parts:[{text:respuesta}]});
+
+    const divIA = document.createElement('div');
+    divIA.className = 'ia-burbuja-ia';
+    divIA.textContent = respuesta;
+    cont.appendChild(divIA);
+    cont.scrollTop = cont.scrollHeight;
+  } catch(e) {
+    divLoad.remove();
+    const divErr = document.createElement('div');
+    divErr.className = 'ia-burbuja-ia';
+    divErr.textContent = '⚠️ Error de conexión. Intenta de nuevo.';
+    cont.appendChild(divErr);
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sendBtn = document.getElementById('ia-send');
+  const input = document.getElementById('ia-input');
+  if(sendBtn) sendBtn.onclick = () => window.enviarMensajeIA();
+  if(input) input.addEventListener('keydown', e => { if(e.key==='Enter') window.enviarMensajeIA(); });
+  const sugPos = document.getElementById('sug-pos');
+  const sugImp = document.getElementById('sug-imp');
+  const sugNet = document.getElementById('sug-net');
+  const sugRed = document.getElementById('sug-red');
+  if(sugPos) sugPos.onclick = () => window.enviarMensajeIA('¿Cómo reinicio el sistema POS si no abre o está lento?');
+  if(sugImp) sugImp.onclick = () => window.enviarMensajeIA('¿Qué hago si la impresora no imprime los tickets?');
+  if(sugNet) sugNet.onclick = () => window.enviarMensajeIA('No tengo internet en la sucursal, ¿qué puedo revisar?');
+  if(sugRed) sugRed.onclick = () => window.enviarMensajeIA('Ayúdame a mejorar la redacción de este reporte: ');
+  const iaModal = document.getElementById('ia-modal');
+  if(iaModal) iaModal.addEventListener('click', e => { if(e.target === iaModal) window.cerrarIA(); });
+});
+
 window.abrirDocumento = function(url, nombreArchivo) {
   const nombre = nombreArchivo || url.split('/').pop().split('?')[0];
   const ext = nombre.split('.').pop().toLowerCase();

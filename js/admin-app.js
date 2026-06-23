@@ -1,3 +1,108 @@
+// ── ASISTENTE IA (Gemini) ──
+let _iaHistorial = [];
+
+window.abrirIA = function(){
+  const modal = document.getElementById('ia-modal');
+  if(modal) modal.style.display = 'flex';
+};
+
+window.cerrarIA = function(){
+  const modal = document.getElementById('ia-modal');
+  if(modal) modal.style.display = 'none';
+};
+
+window.enviarMensajeIA = async function(textoForzado){
+  const input = document.getElementById('ia-input');
+  const texto = textoForzado || input?.value.trim();
+  if(!texto) return;
+  if(input) input.value = '';
+
+  const cont = document.getElementById('ia-mensajes');
+  const bienvenida = document.getElementById('ia-bienvenida');
+  if(bienvenida) bienvenida.remove();
+  if(!cont) return;
+
+  const divUser = document.createElement('div');
+  divUser.className = 'ia-burbuja-user';
+  divUser.textContent = texto;
+  cont.appendChild(divUser);
+
+  const divLoad = document.createElement('div');
+  divLoad.className = 'ia-burbuja-load';
+  divLoad.textContent = 'Pensando...';
+  cont.appendChild(divLoad);
+  cont.scrollTop = cont.scrollHeight;
+
+  const apiKey = window.IA_API_KEY;
+  if(!apiKey || apiKey === 'TU_API_KEY_DE_GEMINI_AQUI'){
+    divLoad.remove();
+    const divErr = document.createElement('div');
+    divErr.className = 'ia-burbuja-ia';
+    divErr.innerHTML = '⚠️ El Asistente IA no está configurado aún.<br><br>Para activarlo:<br>1. Ve a aistudio.google.com/app/apikey<br>2. Genera una API key gratis<br>3. Pégala en js/ia-config.js';
+    cont.appendChild(divErr);
+    cont.scrollTop = cont.scrollHeight;
+    return;
+  }
+
+  try {
+    const systemPrompt = "Eres el asistente técnico del área de Sistemas de Pan Pa' Ya!, una empresa de panaderías con sucursales en Bogotá. Ayudas a: diagnosticar problemas técnicos (sistema POS, redes, internet, hardware, software); redactar o mejorar respuestas a usuarios de sucursales; y resolver dudas generales del personal de TI. Responde en español de forma clara, completa y profesional. Puedes responder cualquier tipo de pregunta, no solo temas técnicos. Da respuestas completas, sin cortarlas a la mitad.";
+
+    _iaHistorial.push({role:'user', parts:[{text:texto}]});
+
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+(window.IA_MODEL||'gemini-1.5-flash')+':generateContent?key='+apiKey, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents: _iaHistorial,
+        systemInstruction: { parts: [{text: systemPrompt}] },
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.4 }
+      })
+    });
+    const data = await res.json();
+    divLoad.remove();
+
+    if(data.error){
+      const divErr = document.createElement('div');
+      divErr.className = 'ia-burbuja-ia';
+      divErr.textContent = '⚠️ Error: ' + (data.error.message || 'No se pudo conectar.');
+      cont.appendChild(divErr);
+      cont.scrollTop = cont.scrollHeight;
+      return;
+    }
+
+    const respuesta = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No pude generar una respuesta.';
+    _iaHistorial.push({role:'model', parts:[{text:respuesta}]});
+
+    const divIA = document.createElement('div');
+    divIA.className = 'ia-burbuja-ia';
+    divIA.textContent = respuesta;
+    cont.appendChild(divIA);
+    cont.scrollTop = cont.scrollHeight;
+  } catch(e) {
+    divLoad.remove();
+    const divErr = document.createElement('div');
+    divErr.className = 'ia-burbuja-ia';
+    divErr.textContent = '⚠️ Error de conexión. Intenta de nuevo.';
+    cont.appendChild(divErr);
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sendBtn = document.getElementById('ia-send');
+  const input = document.getElementById('ia-input');
+  if(sendBtn) sendBtn.onclick = () => window.enviarMensajeIA();
+  if(input) input.addEventListener('keydown', e => { if(e.key==='Enter') window.enviarMensajeIA(); });
+  const sugDiag = document.getElementById('sug-diag');
+  const sugRed = document.getElementById('sug-red');
+  const sugNet = document.getElementById('sug-net');
+  if(sugDiag) sugDiag.onclick = () => window.enviarMensajeIA('¿Cómo diagnostico un problema en el sistema POS que no responde?');
+  if(sugRed) sugRed.onclick = () => window.enviarMensajeIA('Ayúdame a mejorar esta respuesta para un usuario: ');
+  if(sugNet) sugNet.onclick = () => window.enviarMensajeIA('¿Cuáles son los pasos básicos para diagnosticar una falla de internet en una sucursal?');
+  const iaModal = document.getElementById('ia-modal');
+  if(iaModal) iaModal.addEventListener('click', e => { if(e.target === iaModal) window.cerrarIA(); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') window.cerrarIA?.(); });
+});
+
 window.abrirDocumento = function(url, nombreArchivo) {
   const nombre = nombreArchivo || url.split('/').pop().split('?')[0];
   const ext = nombre.split('.').pop().toLowerCase();

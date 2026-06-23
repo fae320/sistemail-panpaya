@@ -213,39 +213,31 @@ document.addEventListener('click', function(e){
           <span class="ph-title">➕ Crear nuevo usuario</span>
           <button class="btn bp" onclick="toggleFormCrearUsuario()">+ Crear usuario</button>
         </div>
-        <div id="form-crear-usuario" style="display:none;padding:1rem">
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:10px">
-            <div class="cf"><label>Nombre completo</label><input type="text" id="nu-nombre" placeholder="Carlos Méndez"></div>
-            <div class="cf"><label>Correo corporativo</label><input type="email" id="nu-email" placeholder="ejemplo@panpaya.com.co"></div>
-            <div class="cf"><label>Contraseña temporal</label><input type="text" id="nu-pass" placeholder="Mínimo 6 caracteres"></div>
-            <div class="cf"><label>Cargo</label>
+        <div id="form-crear-usuario" style="display:none;padding:1.2rem;background:var(--cream);border-radius:12px;margin:0 .5rem .5rem">
+
+          <!-- Fila 1: Datos personales -->
+          <div style="font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">👤 Datos del usuario</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:16px">
+            <div class="cf" style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;font-weight:600;color:var(--gray)">Nombre completo</label><input type="text" id="nu-nombre" placeholder="Ej: Carlos Méndez" style="padding:9px 12px;border:1.5px solid rgba(0,0,0,.12);border-radius:9px;font-size:13px;font-family:Outfit,sans-serif;outline:none;width:100%;box-sizing:border-box"></div>
+            <div class="cf" style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;font-weight:600;color:var(--gray)">Correo corporativo</label><input type="email" id="nu-email" placeholder="carlos@panpaya.com.co" style="padding:9px 12px;border:1.5px solid rgba(0,0,0,.12);border-radius:9px;font-size:13px;font-family:Outfit,sans-serif;outline:none;width:100%;box-sizing:border-box"></div>
+            <div class="cf" style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;font-weight:600;color:var(--gray)">Contraseña temporal</label><input type="text" id="nu-pass" placeholder="Mínimo 6 caracteres" style="padding:9px 12px;border:1.5px solid rgba(0,0,0,.12);border-radius:9px;font-size:13px;font-family:Outfit,sans-serif;outline:none;width:100%;box-sizing:border-box"></div>
+            <div class="cf" style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;font-weight:600;color:var(--gray)">Cargo</label>
               <select id="nu-cargo">
                 <option value="">Selecciona un cargo...</option>
-                <optgroup label="Directivos">
-                  <option>Gerente General</option><option>Subgerente</option><option>Director de Operaciones</option><option>Director Administrativo</option>
-                </optgroup>
-                <optgroup label="Administrativo y Financiero">
-                  <option>Contador</option><option>Auxiliar Contable</option><option>Tesorero</option><option>Cartera</option><option>Facturacion</option><option>Recursos Humanos</option><option>Nomina</option><option>Juridico</option><option>Compras</option><option>Proveedores</option>
-                </optgroup>
-                <optgroup label="Operaciones y Logistica">
-                  <option>Jefe de Operaciones</option><option>Coordinador de Logistica</option><option>Conductor</option><option>Bodeguero</option><option>Inventarios</option><option>Almacenista</option><option>Jefe de Produccion</option><option>Panadero</option><option>Pastelero</option><option>Auxiliar de Produccion</option>
-                </optgroup>
-                <optgroup label="Ventas y Mercadeo">
-                  <option>Director de Ventas</option><option>Jefe de Mercadeo</option><option>Asesor Comercial</option><option>Community Manager</option><option>Disenador Grafico</option>
-                </optgroup>
-                <optgroup label="Sucursales">
-                  <option>Administrador de Sucursal</option><option>Cajero</option><option>Auxiliar de Caja</option><option>Vendedor</option><option>Atencion al Cliente</option><option>Domiciliario</option>
-                </optgroup>
-                <optgroup label="Sistemas y TI">
-                  <option>Jefe de Sistemas</option><option>Tecnico de Sistemas</option><option>Desarrollador</option><option>Soporte TI</option>
-                </optgroup>
-                <optgroup label="Otros">
-                  <option>Auditor</option><option>Asesor Juridico</option><option>Servicios Generales</option><option>Seguridad</option><option>Otro cargo</option>
-                </optgroup>
+                <optgroup label="Directivos"><option>Gerente General</option><option>Subgerente</option><option>Director de Operaciones</option><option>Director Administrativo</option></optgroup>
+                <optgroup label="Administrativo y Financiero"><option>Contador</option><option>Auxiliar Contable</option><option>Tesorero</option><option>Cartera</option><option>Facturacion</option><option>Recursos Humanos</option><option>Nomina</option><option>Juridico</option><option>Compras</option><option>Proveedores</option></optgroup>
+                <optgroup label="Operaciones y Logistica"><option>Jefe de Operaciones</option><option>Coordinador de Logistica</option><option>Conductor</option><option>Bodeguero</option><option>Inventarios</option><option>Almacenista</option><option>Jefe de Produccion</option><option>Panadero</option><option>Pastelero</option><option>Auxiliar de Produccion</option></optgroup>
+                <optgroup label="Ventas y Mercadeo"><option>Director de Ventas</option><option>Jefe de Mercadeo</option><option>Asesor Comercial</option><option>Community Manager</option><option>Disenador Grafico</option></optgroup>
+                <optgroup label="Sucursales"><option>Administrador de Sucursal</option><option>Cajero</option><option>Auxiliar de Caja</option><option>Vendedor</option><option>Atencion al Cliente</option><option>Domiciliario</option></optgroup>
+                <optgroup label="Sistemas y TI"><option>Jefe de Sistemas</option><option>Tecnico de Sistemas</option><option>Desarrollador</option><option>Soporte TI</option></optgroup>
+                <optgroup label="Otros"><option>Auditor</option><option>Asesor Juridico</option><option>Servicios Generales</option><option>Seguridad</option><option>Otro cargo</option></optgroup>
               </select>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:10px">
+
+          <!-- Fila 2: Empresa y acceso -->
+          <div style="font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🏢 Empresa y acceso</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:14px">
             <div class="cf"><label>Empresa</label>
               <select id="nu-empresa">
                 <option value="Pan Pa Ya">🥖 Pan Pa' Ya!</option>
@@ -257,33 +249,42 @@ document.addEventListener('click', function(e){
             <div class="cf"><label>Sucursal / Oficina</label>
               <select id="nu-sucursal">
                 <option value="">Selecciona...</option>
-                <optgroup label="🏪 Sucursales">
-                  <option>Pan Pa Ya Sucursal Chapinero 58</option><option>Pan Pa Ya Sucursal Mazuren</option><option>Pan Pa Ya Sucursal Multiplaza</option><option>Pan Pa Ya Sucursal Pepe Sierra</option><option>Pan Pa Ya Sucursal 32</option><option>Pan Pa Ya Sucursal Bulevar 52</option><option>Pan Pa Ya Sucursal 96</option><option>Pan Pa Ya Sucursal 98</option><option>Pan Pa Ya Sucursal 100</option><option>Pan Pa Ya Sucursal 103</option><option>Pan Pa Ya Sucursal 106</option><option>Pan Pa Ya Sucursal 138</option><option>Pan Pa Ya Sucursal Alkosto 68</option><option>Pan Pa Ya Sucursal Alkosto 170</option><option>Pan Pa Ya Sucursal Avenida 19</option><option>Pan Pa Ya Sucursal Batan 125</option><option>Pan Pa Ya Sucursal Bella Suiza 127</option><option>Pan Pa Ya Sucursal Bosque</option><option>Pan Pa Ya Sucursal Cafe 98</option><option>Pan Pa Ya Sucursal Calleja</option><option>Pan Pa Ya Sucursal Cedritos 147</option><option>Pan Pa Ya Sucursal Chia</option><option>Pan Pa Ya Sucursal Cota</option><option>Pan Pa Ya Sucursal Home Center 80</option><option>Pan Pa Ya Sucursal Home Center 170</option><option>Pan Pa Ya Sucursal Home Center Cajica</option><option>Pan Pa Ya Sucursal Home Center Dorado</option><option>Pan Pa Ya Sucursal Retiro 82</option><option>Pan Pa Ya Sucursal Rosales</option><option>Pan Pa Ya Sucursal Salitre</option><option>Pan Pa Ya Sucursal Santa Fe</option><option>Pan Pa Ya Sucursal Sarmiento</option><option>Pan Pa Ya Sucursal Suba</option><option>Pan Pa Ya Sucursal Unicentro</option><option>Pan Pa Ya Sucursal Calle 80</option>
-                </optgroup>
+                <optgroup label="🏪 Sucursales"><option>Pan Pa Ya Sucursal Chapinero 58</option><option>Pan Pa Ya Sucursal Mazuren</option><option>Pan Pa Ya Sucursal Multiplaza</option><option>Pan Pa Ya Sucursal Pepe Sierra</option><option>Pan Pa Ya Sucursal 32</option><option>Pan Pa Ya Sucursal Bulevar 52</option><option>Pan Pa Ya Sucursal 96</option><option>Pan Pa Ya Sucursal 98</option><option>Pan Pa Ya Sucursal 100</option><option>Pan Pa Ya Sucursal 103</option><option>Pan Pa Ya Sucursal 106</option><option>Pan Pa Ya Sucursal 138</option><option>Pan Pa Ya Sucursal Alkosto 68</option><option>Pan Pa Ya Sucursal Alkosto 170</option><option>Pan Pa Ya Sucursal Avenida 19</option><option>Pan Pa Ya Sucursal Batan 125</option><option>Pan Pa Ya Sucursal Bella Suiza 127</option><option>Pan Pa Ya Sucursal Bosque</option><option>Pan Pa Ya Sucursal Cafe 98</option><option>Pan Pa Ya Sucursal Calleja</option><option>Pan Pa Ya Sucursal Cedritos 147</option><option>Pan Pa Ya Sucursal Chia</option><option>Pan Pa Ya Sucursal Cota</option><option>Pan Pa Ya Sucursal Home Center 80</option><option>Pan Pa Ya Sucursal Home Center 170</option><option>Pan Pa Ya Sucursal Home Center Cajica</option><option>Pan Pa Ya Sucursal Home Center Dorado</option><option>Pan Pa Ya Sucursal Retiro 82</option><option>Pan Pa Ya Sucursal Rosales</option><option>Pan Pa Ya Sucursal Salitre</option><option>Pan Pa Ya Sucursal Santa Fe</option><option>Pan Pa Ya Sucursal Sarmiento</option><option>Pan Pa Ya Sucursal Suba</option><option>Pan Pa Ya Sucursal Unicentro</option><option>Pan Pa Ya Sucursal Calle 80</option></optgroup>
                 <optgroup label="🏢 Oficina Central"><option value="Oficina Central">Oficina Central</option></optgroup>
               </select>
             </div>
             <div class="cf"><label>Tipo de acceso</label>
               <select id="nu-tipo">
                 <option value="usuario">👤 Usuario — Sucursal/Oficina</option>
-                <option value="tecnico">🔧 Técnico de Sistemas — Soporte</option>
-                <option value="admin">👑 Administrador — Acceso total</option>
+                <option value="tecnico">🔧 Técnico de Sistemas</option>
+                <option value="admin">👑 Administrador</option>
               </select>
             </div>
           </div>
-          <div style="background:var(--cream2);border-radius:var(--rs);padding:.8rem 1rem;margin-bottom:10px;font-size:12px">
-            <div style="font-weight:700;color:var(--charcoal);margin-bottom:6px">📋 Niveles de acceso:</div>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <div>👤 <strong>Usuario</strong> — Reportar problemas, ver respuestas, chat con Sistemas</div>
-              <div>🔧 <strong>Técnico</strong> — Responder correos, chat, ver reportes. <span style="color:var(--danger)">NO puede</span>: aprobar usuarios, ver estadísticas, crear cuentas</div>
-              <div>👑 <strong>Administrador</strong> — Acceso total. Aprueba usuarios, ve todo, firma autorizaciones</div>
+
+          <!-- Niveles de acceso -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:14px">
+            <div style="background:#fff;border-radius:10px;padding:.7rem .9rem;border-left:3px solid var(--success);font-size:12px">
+              <div style="font-weight:700;color:var(--success);margin-bottom:3px">👤 Usuario</div>
+              <div style="color:var(--gray)">Reportar, ver respuestas, chat</div>
+            </div>
+            <div style="background:#fff;border-radius:10px;padding:.7rem .9rem;border-left:3px solid var(--info);font-size:12px">
+              <div style="font-weight:700;color:var(--info);margin-bottom:3px">🔧 Técnico</div>
+              <div style="color:var(--gray)">Responder correos y chat. Sin estadísticas ni aprobaciones</div>
+            </div>
+            <div style="background:#fff;border-radius:10px;padding:.7rem .9rem;border-left:3px solid var(--danger);font-size:12px">
+              <div style="font-weight:700;color:var(--danger);margin-bottom:3px">👑 Administrador</div>
+              <div style="color:var(--gray)">Acceso total al sistema</div>
             </div>
           </div>
-          <div style="background:var(--info-bg);border-radius:var(--rs);padding:.6rem .8rem;font-size:11px;color:var(--info);margin-bottom:10px">
-            💡 El usuario recibe correo y contraseña por otro medio. Puede cambiarla al ingresar.
+
+          <div style="background:var(--info-bg);border-radius:10px;padding:.6rem .9rem;font-size:11px;color:var(--info);margin-bottom:12px;display:flex;align-items:center;gap:6px">
+            💡 El usuario recibe sus credenciales por otro medio y puede cambiar la contraseña al ingresar.
           </div>
-          <button class="btn bp" id="btn-crear-usuario" onclick="crearUsuarioDesdeAdmin()">✅ Crear usuario</button>
-          <button class="btn bo" onclick="toggleFormCrearUsuario()" style="margin-left:8px">Cancelar</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn bp" id="btn-crear-usuario" onclick="crearUsuarioDesdeAdmin()">✅ Crear usuario</button>
+            <button class="btn bo" onclick="toggleFormCrearUsuario()">Cancelar</button>
+          </div>
         </div>
       </div>
 
@@ -668,7 +669,7 @@ document.addEventListener('click', function(e){
 <!-- Scripts al final -->
 <script src="js/ia-config.js"></script>
 <script src="js/notificaciones.js"></script>
-<script type="module" src="js/admin-app.js?v=1781796930"></script>
+<script type="module" src="js/admin-app.js?v=1781884169"></script>
 <script src="js/admin-mobile.js" defer></script>
 </body>
 </html>
